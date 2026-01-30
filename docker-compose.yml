@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  linguist-api:
+    image: kevynmurilo/linguist-api:latest
+    container_name: linguist-api
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  linguist-front:
+    image: kevynmurilo/linguist-front:latest
+    container_name: linguist-front
+    ports:
+      - "8081:80"
+    depends_on:
+      - linguist-api
+    restart: unless-stopped
+
+networks:
+  default:
+    name: linguist-network

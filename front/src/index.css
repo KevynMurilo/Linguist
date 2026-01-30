@@ -1,0 +1,312 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Linguist-Core Design System
+   A warm, encouraging palette for language learning
+   Primary: Deep indigo for trust & focus
+   Accent: Coral/orange for energy & encouragement
+   Semantic colors for mastery levels
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@layer base {
+  :root {
+    /* Core palette */
+    --background: 240 20% 99%;
+    --foreground: 240 15% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 15% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 15% 15%;
+
+    /* Primary: Deep Indigo */
+    --primary: 245 58% 51%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Soft lavender */
+    --secondary: 245 30% 95%;
+    --secondary-foreground: 245 58% 40%;
+
+    /* Muted backgrounds */
+    --muted: 240 15% 96%;
+    --muted-foreground: 240 10% 45%;
+
+    /* Accent: Warm Coral */
+    --accent: 15 90% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive: Soft red */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders & inputs */
+    --border: 240 12% 90%;
+    --input: 240 12% 90%;
+    --ring: 245 58% 51%;
+
+    --radius: 0.75rem;
+
+    /* Custom semantic colors */
+    --success: 152 69% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* Mastery levels */
+    --mastery-critical: 0 84% 60%;
+    --mastery-weak: 25 95% 53%;
+    --mastery-progressing: 45 93% 47%;
+    --mastery-good: 217 91% 60%;
+    --mastery-mastered: 152 69% 45%;
+
+    /* Streak flame colors */
+    --streak-flame: 25 95% 53%;
+    --streak-glow: 38 92% 50%;
+
+    /* Level badges */
+    --level-a1: 199 89% 48%;
+    --level-a2: 172 66% 50%;
+    --level-b1: 142 69% 45%;
+    --level-b2: 45 93% 47%;
+    --level-c1: 25 95% 53%;
+    --level-c2: 245 58% 51%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(245 58% 51%), hsl(280 60% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(15 90% 60%), hsl(38 92% 55%));
+    --gradient-success: linear-gradient(135deg, hsl(152 69% 45%), hsl(172 66% 50%));
+    --gradient-hero: linear-gradient(135deg, hsl(245 58% 51%) 0%, hsl(280 60% 55%) 50%, hsl(15 90% 60%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(240 20% 98%) 100%);
+    --gradient-streak: linear-gradient(135deg, hsl(25 95% 53%), hsl(38 92% 50%), hsl(0 84% 55%));
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+    --shadow-glow: 0 0 30px -5px hsl(245 58% 51% / 0.3);
+    --shadow-accent: 0 0 30px -5px hsl(15 90% 60% / 0.3);
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 245 58% 51%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 245 30% 95%;
+    --sidebar-accent-foreground: 245 58% 40%;
+    --sidebar-border: 240 12% 90%;
+    --sidebar-ring: 245 58% 51%;
+  }
+
+  .dark {
+    --background: 240 15% 8%;
+    --foreground: 240 10% 95%;
+
+    --card: 240 15% 12%;
+    --card-foreground: 240 10% 95%;
+
+    --popover: 240 15% 12%;
+    --popover-foreground: 240 10% 95%;
+
+    --primary: 245 70% 65%;
+    --primary-foreground: 240 15% 8%;
+
+    --secondary: 240 15% 18%;
+    --secondary-foreground: 245 70% 75%;
+
+    --muted: 240 15% 18%;
+    --muted-foreground: 240 10% 60%;
+
+    --accent: 15 85% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 15% 20%;
+    --input: 240 15% 20%;
+    --ring: 245 70% 65%;
+
+    --success: 152 60% 40%;
+    --warning: 38 85% 45%;
+    --info: 199 80% 45%;
+
+    --sidebar-background: 240 15% 10%;
+    --sidebar-foreground: 240 10% 90%;
+    --sidebar-primary: 245 70% 65%;
+    --sidebar-primary-foreground: 240 15% 8%;
+    --sidebar-accent: 240 15% 18%;
+    --sidebar-accent-foreground: 245 70% 75%;
+    --sidebar-border: 240 15% 20%;
+    --sidebar-ring: 245 70% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  /* Glassmorphism card */
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-xl border border-white/20 shadow-lg;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-hero);
+  }
+
+  /* Progress ring animation */
+  .progress-ring {
+    animation: progress-ring 1s ease-out forwards;
+  }
+
+  @keyframes progress-ring {
+    from {
+      stroke-dashoffset: 100;
+    }
+  }
+
+  /* Streak flame animation */
+  .flame-glow {
+    animation: flame-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes flame-pulse {
+    0%, 100% {
+      filter: drop-shadow(0 0 8px hsl(var(--streak-flame) / 0.6));
+    }
+    50% {
+      filter: drop-shadow(0 0 16px hsl(var(--streak-glow) / 0.8));
+    }
+  }
+
+  /* Level badge glow */
+  .level-badge {
+    @apply relative overflow-hidden;
+  }
+
+  .level-badge::before {
+    content: '';
+    @apply absolute inset-0 opacity-50;
+    background: linear-gradient(45deg, transparent 40%, white 50%, transparent 60%);
+    animation: shine 3s infinite;
+  }
+
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* Mastery bar */
+  .mastery-bar {
+    @apply relative h-3 rounded-full overflow-hidden bg-muted;
+  }
+
+  .mastery-bar-fill {
+    @apply absolute left-0 top-0 h-full rounded-full transition-all duration-500 ease-out;
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    @apply transition-all duration-300;
+  }
+
+  .card-hover:hover {
+    @apply -translate-y-1;
+    box-shadow: var(--shadow-xl);
+  }
+
+  /* Button gradient */
+  .btn-gradient {
+    background: var(--gradient-primary);
+    @apply text-white font-semibold shadow-lg;
+    box-shadow: var(--shadow-glow);
+  }
+
+  .btn-gradient:hover {
+    @apply opacity-90;
+  }
+
+  .btn-accent {
+    background: var(--gradient-accent);
+    @apply text-white font-semibold shadow-lg;
+    box-shadow: var(--shadow-accent);
+  }
+
+  /* Smooth scroll container */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Audio waveform */
+  .waveform-bar {
+    @apply bg-primary/30 rounded-full transition-all duration-100;
+  }
+
+  .waveform-bar.active {
+    @apply bg-primary;
+    animation: waveform 0.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes waveform {
+    from { transform: scaleY(0.3); }
+    to { transform: scaleY(1); }
+  }
+}
+
+@layer utilities {
+  /* Mastery level background utilities */
+  .bg-mastery-critical { background-color: hsl(var(--mastery-critical)); }
+  .bg-mastery-weak { background-color: hsl(var(--mastery-weak)); }
+  .bg-mastery-progressing { background-color: hsl(var(--mastery-progressing)); }
+  .bg-mastery-good { background-color: hsl(var(--mastery-good)); }
+  .bg-mastery-mastered { background-color: hsl(var(--mastery-mastered)); }
+
+  /* Level badge colors */
+  .bg-level-a1 { background-color: hsl(var(--level-a1)); }
+  .bg-level-a2 { background-color: hsl(var(--level-a2)); }
+  .bg-level-b1 { background-color: hsl(var(--level-b1)); }
+  .bg-level-b2 { background-color: hsl(var(--level-b2)); }
+  .bg-level-c1 { background-color: hsl(var(--level-c1)); }
+  .bg-level-c2 { background-color: hsl(var(--level-c2)); }
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
