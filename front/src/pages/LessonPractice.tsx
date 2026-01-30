@@ -376,33 +376,35 @@ export default function LessonPractice() {
   }, [lesson, currentWordRange]);
 
   const renderPhoneticText = (text: string) => {
-    const lines = text.split('\n');
+    const continuousText = text.replace(/\n+/g, ' ');
+    const segments = continuousText.split(/(\s+)/);
     let globalWordIdx = 0;
-    return lines.map((line, li) => {
-      if (!line.trim()) return <br key={li} />;
-      const segments = line.split(/(\s+)/);
-      return (
-        <p key={li} className="mb-1 leading-loose last:mb-0">
-          {segments.map((segment, si) => {
-            if (/^\s+$/.test(segment) || !segment) return <span key={si}>{segment}</span>;
-            const idx = globalWordIdx;
-            globalWordIdx++;
-            const isActive = idx === currentWordIndex;
-            return (
-              <span
-                key={si}
-                className={cn(
-                  "rounded px-0.5 transition-all duration-150 inline-block",
-                  isActive ? "bg-violet-300 dark:bg-violet-500 text-black dark:text-white font-bold scale-110 shadow-sm" : ""
-                )}
-              >
-                {segment}
-              </span>
-            );
-          })}
-        </p>
-      );
-    });
+
+    return (
+      <div className="leading-relaxed">
+        {segments.map((segment, si) => {
+          if (/^\s+$/.test(segment) || !segment) return <span key={si}>{segment}</span>;
+          
+          const idx = globalWordIdx;
+          globalWordIdx++;
+          const isActive = idx === currentWordIndex;
+
+          return (
+            <span
+              key={si}
+              className={cn(
+                "rounded px-0.5 transition-all duration-150 inline-block",
+                isActive 
+                  ? "bg-violet-300 dark:bg-violet-500 text-black dark:text-white font-bold scale-105 shadow-sm" 
+                  : ""
+              )}
+            >
+              {segment}
+            </span>
+          );
+        })}
+      </div>
+    );
   };
 
   if (isLoading || !lesson) return <AppLayout><div className="flex items-center justify-center min-h-[60vh] animate-pulse">{t('practice.loading')}</div></AppLayout>;
@@ -475,7 +477,9 @@ export default function LessonPractice() {
               <CardDescription>{t('practice.phoneticGuideDesc')}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-base font-medium">{renderPhoneticText(lesson.phoneticMarkers)}</div>
+              <div className="p-6 bg-muted/20 rounded-xl text-base font-medium">
+                {renderPhoneticText(lesson.phoneticMarkers)}
+              </div>
             </CardContent>
           </Card>
         )}
