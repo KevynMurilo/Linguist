@@ -21,6 +21,9 @@ public class LessonResponseDTO {
     @Schema(example = "Space exploration and Mars colonization")
     private String topic;
 
+    @Schema(example = "es-ES", description = "Target language for this lesson")
+    private String targetLanguage;
+
     @Schema(description = "Simplified text adapted to the user's proficiency level")
     private String simplifiedText;
 
@@ -29,6 +32,12 @@ public class LessonResponseDTO {
 
     @Schema(description = "Grammar explanations in the student's native language (A1-A2), mixed (B1-B2), or target language (C1-C2)")
     private String teachingNotes;
+
+    @Schema(description = "Key vocabulary words with translations to native language")
+    private String vocabularyList;
+
+    @Schema(description = "Cultural context note about the topic")
+    private String culturalNote;
 
     @Schema(description = "Key grammar rules present in the lesson")
     private List<String> grammarFocus;

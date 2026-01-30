@@ -29,6 +29,9 @@ public class Lesson {
     @Column(nullable = false)
     private String topic;
 
+    @Column(length = 10)
+    private String targetLanguage;
+
     @Column(columnDefinition = "TEXT", nullable = false)
     private String simplifiedText;
 
@@ -37,6 +40,12 @@ public class Lesson {
 
     @Column(columnDefinition = "TEXT")
     private String teachingNotes;
+
+    @Column(columnDefinition = "TEXT")
+    private String vocabularyList;
+
+    @Column(columnDefinition = "TEXT")
+    private String culturalNote;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "lesson_grammar_focus", joinColumns = @JoinColumn(name = "lesson_id"))

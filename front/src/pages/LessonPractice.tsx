@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Play, Pause, RotateCcw, Mic, Square, Volume2, Loader2,
@@ -87,8 +87,9 @@ export default function LessonPractice() {
   useEffect(() => {
     const loadVoices = () => {
       const voices = speechSynthesis.getVoices();
-      if (!user?.targetLanguage) return;
-      const langPrefix = user.targetLanguage.split('-')[0];
+      const targetLang = lesson?.targetLanguage || user?.targetLanguage;
+      if (!targetLang) return;
+      const langPrefix = targetLang.split('-')[0];
       const filtered = voices.filter(v => v.lang.startsWith(langPrefix));
       filtered.sort((a, b) => {
         const aScore = (!a.localService ? 2 : 0) + (/Google|Microsoft|Natural/i.test(a.name) ? 1 : 0);
@@ -100,11 +101,11 @@ export default function LessonPractice() {
     loadVoices();
     speechSynthesis.onvoiceschanged = loadVoices;
     return () => { speechSynthesis.onvoiceschanged = null; };
-  }, [user?.targetLanguage]);
+  }, [lesson?.targetLanguage, user?.targetLanguage]);
 
   const createUtterance = (text: string, offset: number) => {
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = user?.targetLanguage || 'en-US';
+    utterance.lang = lesson?.targetLanguage || user?.targetLanguage || 'en-US';
     utterance.rate = speed;
     if (selectedVoice) {
       const voice = availableVoices.find(v => v.name === selectedVoice);
@@ -143,10 +144,10 @@ export default function LessonPractice() {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = user?.targetLanguage || 'en-US';
+      recognition.lang = lesson?.targetLanguage || user?.targetLanguage || 'en-US';
 
       recognition.onstart = () => setIsMicReady(true);
-      
+
       recognition.onresult = (event: any) => {
         let currentTranscript = '';
         for (let i = 0; i < event.results.length; ++i) {
@@ -161,14 +162,14 @@ export default function LessonPractice() {
           setIsMicReady(false);
         }
       };
-      
+
       recognition.onend = () => {
         setIsMicReady(false);
       };
 
       recognitionRef.current = recognition;
     }
-  }, [user?.targetLanguage]);
+  }, [lesson?.targetLanguage, user?.targetLanguage]);
 
   const handlePlay = () => {
     if (!lesson) return;
@@ -321,12 +322,25 @@ export default function LessonPractice() {
 
   const cleanVoiceName = (name: string) => name.replace(/Microsoft|Google|Apple|Desktop|Natural|Online|Cloud/gi, '').replace(/[()\-]/g, '').trim();
 
-  const formatTeachingNotes = (text: string) => {
+  const formatRichText = (text: string) => {
     return text.split('\n').map((line, i) => {
-      const parts = line.split(/(\*\*.*?\*\*)/g);
+      const parts = line.split(/(\*\*.*?\*\*|\[[^\]]+\]\([^)]+\))/g);
       return (
         <p key={i} className="mb-3 leading-relaxed last:mb-0">
-          {parts.map((part, j) => part.startsWith('**') && part.endsWith('**') ? <strong key={j} className="text-foreground font-bold">{part.slice(2, -2)}</strong> : part)}
+          {parts.map((part, j) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              return <strong key={j} className="text-foreground font-bold">{part.slice(2, -2)}</strong>;
+            }
+            const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+            if (linkMatch) {
+              return (
+                <a key={j} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  {linkMatch[1]}
+                </a>
+              );
+            }
+            return part;
+          })}
         </p>
       );
     });
@@ -351,6 +365,42 @@ export default function LessonPractice() {
             );
           })}
         </span>
+      );
+    });
+  };
+
+  const currentWordIndex = useMemo(() => {
+    if (!lesson || currentWordRange.start < 0) return -1;
+    const textBefore = lesson.simplifiedText.substring(0, currentWordRange.start);
+    return textBefore.split(/\s+/).filter(w => w.length > 0).length;
+  }, [lesson, currentWordRange]);
+
+  const renderPhoneticText = (text: string) => {
+    const lines = text.split('\n');
+    let globalWordIdx = 0;
+    return lines.map((line, li) => {
+      if (!line.trim()) return <br key={li} />;
+      const segments = line.split(/(\s+)/);
+      return (
+        <p key={li} className="mb-1 leading-loose last:mb-0">
+          {segments.map((segment, si) => {
+            if (/^\s+$/.test(segment) || !segment) return <span key={si}>{segment}</span>;
+            const idx = globalWordIdx;
+            globalWordIdx++;
+            const isActive = idx === currentWordIndex;
+            return (
+              <span
+                key={si}
+                className={cn(
+                  "rounded px-0.5 transition-all duration-150 inline-block",
+                  isActive ? "bg-violet-300 dark:bg-violet-500 text-black dark:text-white font-bold scale-110 shadow-sm" : ""
+                )}
+              >
+                {segment}
+              </span>
+            );
+          })}
+        </p>
       );
     });
   };
@@ -384,7 +434,7 @@ export default function LessonPractice() {
 
         <div className="flex items-start justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-2"><LevelBadge level={lesson.level} />{lesson.completed && <span className="text-sm px-2 py-0.5 rounded-full bg-success/10 text-success font-medium">{t('common.completed')}</span>}</div>
+            <div className="flex items-center gap-2 mb-2"><LevelBadge level={lesson.level} />{lesson.targetLanguage && <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{lesson.targetLanguage}</span>}{lesson.completed && <span className="text-sm px-2 py-0.5 rounded-full bg-success/10 text-success font-medium">{t('common.completed')}</span>}</div>
             <h1 className="text-2xl font-bold">{lesson.topic}</h1>
             <div className="flex flex-wrap gap-2 mt-2">{lesson.grammarFocus.map((rule) => <span key={rule} className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">{rule}</span>)}</div>
           </div>
@@ -397,7 +447,36 @@ export default function LessonPractice() {
         {lesson.teachingNotes && (
           <Card className="border-primary/20 bg-primary/5">
             <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-lg"><BookOpen className="w-5 h-5 text-primary" />{t('practice.teachingNotes')}</CardTitle><CardDescription>{t('practice.teachingNotesDesc')}</CardDescription></CardHeader>
-            <CardContent><div className="text-sm leading-relaxed">{formatTeachingNotes(lesson.teachingNotes)}</div></CardContent>
+            <CardContent><div className="text-sm leading-relaxed">{formatRichText(lesson.teachingNotes)}</div></CardContent>
+          </Card>
+        )}
+
+        {lesson.vocabularyList && (
+          <Card className="border-accent/20 bg-accent/5">
+            <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-lg">📖 {t('practice.vocabulary')}</CardTitle></CardHeader>
+            <CardContent><div className="text-sm leading-relaxed whitespace-pre-line">{lesson.vocabularyList}</div></CardContent>
+          </Card>
+        )}
+
+        {lesson.culturalNote && (
+          <Card className="border-warning/20 bg-warning/5">
+            <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-lg">🌍 {t('practice.culturalNote')}</CardTitle></CardHeader>
+            <CardContent><div className="text-sm leading-relaxed">{formatRichText(lesson.culturalNote)}</div></CardContent>
+          </Card>
+        )}
+
+        {lesson.phoneticMarkers && (
+          <Card className="border-violet-500/20 bg-violet-500/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <span className="text-lg">🔊</span>
+                {t('practice.phoneticGuide')}
+              </CardTitle>
+              <CardDescription>{t('practice.phoneticGuideDesc')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-base font-medium">{renderPhoneticText(lesson.phoneticMarkers)}</div>
+            </CardContent>
           </Card>
         )}
 
@@ -405,7 +484,6 @@ export default function LessonPractice() {
           <CardHeader><CardTitle className="flex items-center gap-2"><Volume2 className="w-5 h-5" />{t('practice.shadowingText')}</CardTitle><CardDescription>{t('practice.shadowingTextDesc')}</CardDescription></CardHeader>
           <CardContent className="space-y-4">
             <div className="p-6 bg-muted/30 rounded-xl text-xl leading-relaxed font-medium">{renderClickableText(lesson.simplifiedText)}</div>
-            {lesson.phoneticMarkers && (<div className="p-3 bg-primary/5 rounded-lg border border-primary/10"><p className="text-sm font-medium text-primary mb-1">{t('practice.phoneticGuide')}</p><p className="text-sm text-muted-foreground whitespace-pre-line">{lesson.phoneticMarkers}</p></div>)}
             <div className="flex flex-wrap items-center gap-4 pt-4 border-t">
               <div className="flex items-center gap-2">
                 <Button variant={isPlaying ? 'destructive' : 'default'} size="lg" onClick={handlePlay} className="gap-2">{isPlaying ? <><Pause className="w-5 h-5" />{t('practice.stop')}</> : <><Play className="w-5 h-5" />{t('practice.listen')}</>}</Button>

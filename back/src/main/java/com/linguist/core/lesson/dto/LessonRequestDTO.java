@@ -25,4 +25,9 @@ public class LessonRequestDTO {
     @Schema(example = "Space exploration and Mars colonization",
             description = "Any topic or link — the system is universal")
     private String topic;
+
+    @Size(min = 2, max = 10)
+    @Schema(example = "es-ES",
+            description = "Target language for this lesson. If not provided, uses user's default.")
+    private String targetLanguage;
 }

@@ -19,6 +19,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,17 +38,21 @@ public class LessonService {
     private final ObjectMapper objectMapper;
 
     @Transactional
-    public LessonResponseDTO generate(UUID userId, String topic, String provider, String apiKey) {
+    public LessonResponseDTO generate(UUID userId, String topic, String targetLanguage, String provider, String apiKey) {
         User user = userService.findById(userId);
         AIClient client = aiClientFactory.getClient(provider);
         List<String> weakRules = competenceService.getWeakRuleNames(userId);
 
-        String systemPrompt = buildGenerateSystemPrompt(user, weakRules);
+        String effectiveTargetLanguage = (targetLanguage != null && !targetLanguage.isBlank())
+                ? targetLanguage
+                : user.getTargetLanguage();
+
+        String systemPrompt = buildGenerateSystemPrompt(user, effectiveTargetLanguage, weakRules);
         String userPrompt = String.format("Generate lesson about: %s", topic);
 
         try {
             String aiResponse = client.generateContent(systemPrompt, userPrompt, apiKey);
-            Lesson lesson = parseAndSaveLesson(aiResponse, user, topic);
+            Lesson lesson = parseAndSaveLesson(aiResponse, user, topic, effectiveTargetLanguage);
             return mapToDTO(lesson);
         } catch (Exception e) {
             throw new AIProviderException("GENERATE_ERROR", "Failed to generate lesson", e);
@@ -63,8 +69,10 @@ public class LessonService {
         int spokenWords = countWords(spokenText);
         int coverage = (int) (((double) spokenWords / totalWords) * 100);
 
+        String lessonTargetLang = lesson.getTargetLanguage() != null ? lesson.getTargetLanguage() : user.getTargetLanguage();
+
         AIClient client = aiClientFactory.getClient(provider);
-        String systemPrompt = buildAnalysisSystemPrompt(user, coverage, totalWords, spokenWords);
+        String systemPrompt = buildAnalysisSystemPrompt(user, lessonTargetLang, coverage, totalWords, spokenWords);
         String userPrompt = String.format("ORIGINAL: \"%s\"\nSTUDENT: \"%s\"", lesson.getSimplifiedText(), spokenText);
 
         String result = client.analyzeSpeech(systemPrompt, userPrompt, apiKey);
@@ -124,8 +132,10 @@ public class LessonService {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lesson", lessonId));
 
+        String lessonTargetLang = lesson.getTargetLanguage() != null ? lesson.getTargetLanguage() : user.getTargetLanguage();
+
         AIClient client = aiClientFactory.getClient(provider);
-        String systemPrompt = buildExplainWordSystemPrompt(user, lesson);
+        String systemPrompt = buildExplainWordSystemPrompt(user, lessonTargetLang, lesson);
         String userPrompt = String.format("Term: \"%s\"\nContext: \"%s\"", word, context);
 
         String result = client.explainWord(systemPrompt, userPrompt, apiKey);
@@ -137,44 +147,82 @@ public class LessonService {
         return text.trim().toLowerCase().replaceAll("[^a-z ]", "").split("\\s+").length;
     }
 
-    private String buildLanguageInstruction(User user) {
+    private String buildLanguageInstruction(User user, String targetLanguage) {
         LanguageLevel level = user.getLevel();
-        String nativeL = user.getNativeLanguage();
-        String targetL = user.getTargetLanguage();
+        String nativeName = LanguageNameMapper.getFullName(user.getNativeLanguage());
+        String targetName = LanguageNameMapper.getFullName(targetLanguage);
 
         if (level == LanguageLevel.A1 || level == LanguageLevel.A2) {
-            return String.format("Level: BEGINNER. MANDATORY: All explanations in %s. Lesson in %s.", nativeL, targetL);
+            return String.format("Level: BEGINNER. MANDATORY: All explanations, teachingNotes, vocabularyList and culturalNote MUST be written in %s. "
+                    + "The lesson text (simplifiedText) MUST be written entirely in %s. "
+                    + "PHONETICS RULE: phoneticMarkers and any pronunciation field MUST ONLY use letters and sounds that exist in %s. "
+                    + "NEVER use IPA symbols (like ʁ, ø, œ, ɛ, ʃ, ʒ, ŋ, θ, ð). "
+                    + "Write how the %s words SOUND using %s spelling so the student can simply read it out loud.",
+                    nativeName, targetName, nativeName, targetName, nativeName);
         }
         if (level == LanguageLevel.B1 || level == LanguageLevel.B2) {
-            return String.format("Level: INTERMEDIATE. Mix %s and %s.", targetL, nativeL);
+            return String.format("Level: INTERMEDIATE. Mix %s and %s for explanations. "
+                    + "The lesson text (simplifiedText) MUST be written entirely in %s. "
+                    + "PHONETICS RULE: phoneticMarkers and any pronunciation field MUST ONLY use letters and sounds that exist in %s. "
+                    + "NEVER use IPA symbols. Write how %s words SOUND using %s spelling.",
+                    targetName, nativeName, targetName, nativeName, targetName, nativeName);
         }
-        return String.format("Level: ADVANCED. %s ONLY.", targetL);
+        return String.format("Level: ADVANCED. %s ONLY for everything. "
+                + "PHONETICS RULE: phoneticMarkers and any pronunciation field MUST ONLY use letters and sounds that exist in %s. "
+                + "NEVER use IPA symbols. Write approximate pronunciation using %s spelling.",
+                targetName, nativeName, nativeName);
     }
 
-    private String buildGenerateSystemPrompt(User user, List<String> weakRules) {
+    private String buildGenerateSystemPrompt(User user, String targetLanguage, List<String> weakRules) {
+        String nativeName = LanguageNameMapper.getFullName(user.getNativeLanguage());
+        String targetName = LanguageNameMapper.getFullName(targetLanguage);
+
         return new StringBuilder()
-                .append("Linguistic coach. Shadowing method.\n")
-                .append(buildLanguageInstruction(user)).append("\n")
+                .append("You are a linguistic coach using the Shadowing method.\n")
+                .append(buildLanguageInstruction(user, targetLanguage)).append("\n")
                 .append("WEAKNESSES: ").append(String.join(", ", weakRules)).append("\n")
-                .append("FORMAT: JSON {simplifiedText, phoneticMarkers, grammarFocus[], teachingNotes}")
+                .append("IMPORTANT RULES:\n")
+                .append("- NEVER include citation references like [1], [2], [3] or any numbered references.\n")
+                .append("- Do NOT reference external sources or videos.\n")
+                .append("- phoneticMarkers: Write how EACH word from simplifiedText SOUNDS using ONLY ").append(nativeName).append(" letters.\n")
+                .append("  CRITICAL RULES for phoneticMarkers:\n")
+                .append("  1. Each phonetic word MUST map 1-to-1 with a word in simplifiedText (same position, same word count per sentence).\n")
+                .append("  2. Separate sentences with line breaks (\\n) matching simplifiedText sentences exactly.\n")
+                .append("  3. FORBIDDEN: ʁ ø œ ɛ ʃ ʒ ŋ θ ð ɑ æ ɔ ʊ ɪ ə and ANY IPA symbol. Use ONLY normal alphabet letters from ").append(nativeName).append(".\n")
+                .append("  4. STRESSED syllable in UPPERCASE, unstressed in lowercase.\n")
+                .append("  5. Write it so someone who ONLY reads ").append(nativeName).append(" would pronounce it close to ").append(targetName).append(".\n")
+                .append("  Example (native=Portuguese, target=Spanish): simplifiedText=\"Yo tengo un hermano.\" → phoneticMarkers=\"iô TENgo un erMAno.\"\n")
+                .append("  Example (native=Portuguese, target=French): simplifiedText=\"Je suis ta sœur.\" → phoneticMarkers=\"jê SÜI ta SÉRR.\"\n")
+                .append("- vocabularyList: List the key words from the lesson with their translation to ").append(nativeName).append(". ")
+                .append("Format: 'word = translation'. One per line.\n")
+                .append("- culturalNote: A brief interesting cultural fact about the topic related to ").append(targetName).append(" speaking countries, written in ").append(nativeName).append(".\n")
+                .append("FORMAT: Respond ONLY with a valid JSON object with these exact keys:\n")
+                .append("{\n")
+                .append("  \"simplifiedText\": \"(lesson text in ").append(targetName).append(")\",\n")
+                .append("  \"phoneticMarkers\": \"(pronunciation guide using ").append(nativeName).append(" sounds)\",\n")
+                .append("  \"grammarFocus\": [\"rule1\", \"rule2\"],\n")
+                .append("  \"teachingNotes\": \"(grammar explanations)\",\n")
+                .append("  \"vocabularyList\": \"(key words with translations)\",\n")
+                .append("  \"culturalNote\": \"(cultural context)\"\n")
+                .append("}")
                 .toString();
     }
 
-    private String buildAnalysisSystemPrompt(User user, int coverage, int total, int spoken) {
+    private String buildAnalysisSystemPrompt(User user, String targetLanguage, int coverage, int total, int spoken) {
         return new StringBuilder()
                 .append("Strict Auditor.\n")
-                .append(buildLanguageInstruction(user)).append("\n")
+                .append(buildLanguageInstruction(user, targetLanguage)).append("\n")
                 .append("Coverage: ").append(coverage).append("% (").append(spoken).append("/").append(total).append(" words).\n")
-                .append("70% weight on completeness. JSON {accuracy, errors: [{expected, got, rule, tip}], feedback}")
+                .append("70% weight on completeness. Respond ONLY with valid JSON: {accuracy, errors: [{expected, got, rule, tip}], feedback}")
                 .toString();
     }
 
-    private String buildExplainWordSystemPrompt(User user, Lesson lesson) {
+    private String buildExplainWordSystemPrompt(User user, String targetLanguage, Lesson lesson) {
         return new StringBuilder()
                 .append("Contextual dictionary.\n")
-                .append(buildLanguageInstruction(user)).append("\n")
+                .append(buildLanguageInstruction(user, targetLanguage)).append("\n")
                 .append("Topic: ").append(lesson.getTopic()).append("\n")
-                .append("FORMAT: JSON {word, definition, pronunciation, usage, examples[], relatedWords[]}")
+                .append("Respond ONLY with valid JSON: {word, definition, pronunciation, usage, examples[], relatedWords[]}")
                 .toString();
     }
 
@@ -197,18 +245,56 @@ public class LessonService {
         user.updateStreak(LocalDate.now());
     }
 
-    private Lesson parseAndSaveLesson(String json, User user, String topic) throws Exception {
+    private Lesson parseAndSaveLesson(String json, User user, String topic, String targetLanguage) throws Exception {
         JsonNode root = objectMapper.readTree(cleanJson(json));
         List<String> grammar = new ArrayList<>();
         root.path("grammarFocus").forEach(n -> grammar.add(n.asText()));
 
+        String teachingNotes = root.path("teachingNotes").asText();
+        teachingNotes = cleanCitationReferences(teachingNotes);
+        teachingNotes += generateYouTubeLinks(topic, user.getNativeLanguage(), targetLanguage);
+
+        String vocabularyList = root.path("vocabularyList").asText("");
+        String culturalNote = root.path("culturalNote").asText("");
+
         return lessonRepository.save(Lesson.builder()
-                .user(user).topic(topic).level(user.getLevel())
+                .user(user).topic(topic).targetLanguage(targetLanguage).level(user.getLevel())
                 .simplifiedText(root.path("simplifiedText").asText())
                 .phoneticMarkers(root.path("phoneticMarkers").asText())
-                .teachingNotes(root.path("teachingNotes").asText())
+                .teachingNotes(teachingNotes)
+                .vocabularyList(vocabularyList)
+                .culturalNote(culturalNote)
                 .grammarFocus(grammar).audioSpeedMin(0.5).audioSpeedMax(1.5)
                 .completed(false).bestScore(0).timesAttempted(0).build());
+    }
+
+    private String cleanCitationReferences(String text) {
+        if (text == null) return "";
+        return text.replaceAll("\\[\\d+\\]", "");
+    }
+
+    private String generateYouTubeLinks(String topic, String nativeLanguage, String targetLanguage) {
+        String targetName = LanguageNameMapper.getFullName(targetLanguage).replaceAll("[()]", "").trim();
+        String nativeName = LanguageNameMapper.getFullName(nativeLanguage).replaceAll("[()]", "").trim();
+
+        String[] queries = {
+                String.format("learn %s %s", targetName, topic),
+                String.format("%s lesson %s beginners", targetName, topic),
+                String.format("%s %s practice", targetName, topic)
+        };
+
+        String[] labels = {
+                String.format("Learn %s - %s", targetName, topic),
+                String.format("%s lesson: %s for beginners", targetName, topic),
+                String.format("%s %s practice", targetName, topic)
+        };
+
+        StringBuilder sb = new StringBuilder("\n\n**Recommended Videos:**\n");
+        for (int i = 0; i < queries.length; i++) {
+            String encoded = URLEncoder.encode(queries[i], StandardCharsets.UTF_8);
+            sb.append(String.format("- [%s](https://www.youtube.com/results?search_query=%s)\n", labels[i], encoded));
+        }
+        return sb.toString();
     }
 
     private SpeechAnalysisResponse parseSpeechAnalysis(String json) {
@@ -246,9 +332,14 @@ public class LessonService {
 
     private LessonResponseDTO mapToDTO(Lesson lesson) {
         return LessonResponseDTO.builder()
-                .id(lesson.getId()).topic(lesson.getTopic()).level(lesson.getLevel())
+                .id(lesson.getId()).topic(lesson.getTopic())
+                .targetLanguage(lesson.getTargetLanguage())
+                .level(lesson.getLevel())
                 .simplifiedText(lesson.getSimplifiedText()).phoneticMarkers(lesson.getPhoneticMarkers())
-                .teachingNotes(lesson.getTeachingNotes()).grammarFocus(new ArrayList<>(lesson.getGrammarFocus()))
+                .teachingNotes(lesson.getTeachingNotes())
+                .vocabularyList(lesson.getVocabularyList())
+                .culturalNote(lesson.getCulturalNote())
+                .grammarFocus(new ArrayList<>(lesson.getGrammarFocus()))
                 .audioSpeedMin(lesson.getAudioSpeedMin()).audioSpeedMax(lesson.getAudioSpeedMax())
                 .completed(lesson.getCompleted()).bestScore(lesson.getBestScore())
                 .timesAttempted(lesson.getTimesAttempted()).completedAt(lesson.getCompletedAt()).build();

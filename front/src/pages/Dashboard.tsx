@@ -286,7 +286,14 @@ export default function Dashboard() {
                   >
                     <div className="flex items-start justify-between mb-2">
                       <h4 className="font-medium line-clamp-1">{lesson.topic}</h4>
-                      <LevelBadge level={lesson.level} size="sm" />
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <LevelBadge level={lesson.level} size="sm" />
+                        {lesson.targetLanguage && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                            {lesson.targetLanguage}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       {lesson.completed ? (

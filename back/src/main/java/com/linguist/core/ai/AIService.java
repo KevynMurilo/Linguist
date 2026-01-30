@@ -1,7 +1,5 @@
 package com.linguist.core.ai;
 
-import com.linguist.core.ai.AIClient;
-import com.linguist.core.ai.AIClientFactory;
 import com.linguist.core.user.User;
 import com.linguist.core.user.UserService;
 import lombok.RequiredArgsConstructor;

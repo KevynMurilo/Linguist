@@ -47,7 +47,7 @@ public class LessonController {
             @RequestHeader("X-AI-Provider") String provider) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(lessonService.generate(request.getUserId(), request.getTopic(), provider, apiKey));
+                .body(lessonService.generate(request.getUserId(), request.getTopic(), request.getTargetLanguage(), provider, apiKey));
     }
 
     @PostMapping(value = "/analyze-speech", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

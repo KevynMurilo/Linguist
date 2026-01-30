@@ -47,14 +47,18 @@ export interface UserResponse {
 export interface LessonRequestDTO {
   userId: string;
   topic: string;
+  targetLanguage?: string;
 }
 
 export interface LessonResponseDTO {
   id: string;
   topic: string;
+  targetLanguage: string;
   simplifiedText: string;
   phoneticMarkers: string;
   teachingNotes: string;
+  vocabularyList: string | null;
+  culturalNote: string | null;
   grammarFocus: string[];
   level: LanguageLevel;
   audioSpeedMin: number;

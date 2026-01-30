@@ -21,7 +21,7 @@ import {
 } from './types';
 import { useAppStore } from './store';
 
-const BASE_URL = 'http://localhost:8080/api';
+const BASE_URL = import.meta.env.PROD ? '/api' : 'http://localhost:8080/api';
 
 export const aiApi = {
   chat: async (message: string, userId: string): Promise<{ response: string }> => {

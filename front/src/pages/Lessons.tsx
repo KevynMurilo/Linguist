@@ -57,6 +57,11 @@ export default function Lessons() {
                 <Clock className="w-5 h-5 text-muted-foreground shrink-0" />
               )}
               <LevelBadge level={lesson.level} size="sm" />
+              {lesson.targetLanguage && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                  {lesson.targetLanguage}
+                </span>
+              )}
             </div>
             {lesson.bestScore > 0 && (
               <span className={`text-sm font-medium ${lesson.bestScore >= 80 ? 'text-success' : 'text-muted-foreground'}`}>

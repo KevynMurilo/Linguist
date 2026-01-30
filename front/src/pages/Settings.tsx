@@ -60,7 +60,6 @@ export default function Settings() {
   // Profile form
   const [name, setName] = useState(user?.name || '');
   const [level, setLevel] = useState<LanguageLevel>(user?.level || 'A1');
-  const [targetLang, setTargetLang] = useState(user?.targetLanguage || '');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
   // AI config form
@@ -72,7 +71,7 @@ export default function Settings() {
 
     setIsUpdatingProfile(true);
     try {
-      const updated = await userApi.update(user.id, { name, level, targetLanguage: targetLang });
+      const updated = await userApi.update(user.id, { name, level });
       setUser(updated);
       toast({
         title: t('toast.profileUpdated'),
@@ -186,18 +185,8 @@ export default function Settings() {
               </div>
               <div className="space-y-2">
                 <Label>{t('settings.targetLanguage')}</Label>
-                <Select value={targetLang} onValueChange={setTargetLang}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {languages.map((lang) => (
-                      <SelectItem key={lang.code} value={lang.code}>
-                        {lang.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input value={languages.find(l => l.code === user?.targetLanguage)?.name || user?.targetLanguage || ''} disabled className="bg-muted" />
+                <p className="text-xs text-muted-foreground">{t('settings.targetLanguageNote')}</p>
               </div>
             </div>
 
