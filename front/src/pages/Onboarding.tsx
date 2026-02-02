@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { GraduationCap, ArrowRight, Sparkles, Globe, Zap, Check } from 'lucide-react';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { GraduationCap, ArrowRight, ArrowLeft, Sparkles, Globe, Zap, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -196,8 +196,7 @@ export default function Onboarding() {
 
   // Already logged in?
   if (user && aiConfig) {
-    navigate('/dashboard');
-    return null;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
@@ -294,7 +293,15 @@ export default function Onboarding() {
 
         {step === 'register' && (
           <Card className="w-full max-w-lg animate-fade-in">
-            <CardHeader className="text-center">
+            <CardHeader className="text-center relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute left-4 top-4"
+                onClick={() => setStep('welcome')}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-2">
                 <GraduationCap className="w-6 h-6 text-primary" />
               </div>
@@ -399,6 +406,17 @@ export default function Onboarding() {
                 {isLoading ? t('onboarding.register.creating') : t('onboarding.register.continue')}
                 <ArrowRight className="w-4 h-4" />
               </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                {t('onboarding.register.hasAccount')}{' '}
+                <button
+                  type="button"
+                  className="text-primary underline-offset-4 hover:underline cursor-pointer"
+                  onClick={() => setStep('login')}
+                >
+                  {t('onboarding.register.signIn')}
+                </button>
+              </p>
             </CardContent>
           </Card>
         )}

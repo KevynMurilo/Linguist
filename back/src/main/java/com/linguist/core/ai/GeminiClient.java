@@ -7,8 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -69,8 +68,53 @@ public class GeminiClient extends BaseAIClient {
 
     @Override
     public String analyzeSpeech(String systemPrompt, String userPrompt, String apiKey) {
-        log.info("[GEMINI] Iniciando análise de fala (analyzeSpeech)");
+        log.info("[GEMINI] Iniciando análise de fala (analyzeSpeech) - somente texto");
         return generateContent(systemPrompt, userPrompt, apiKey);
+    }
+
+    @Override
+    public boolean supportsAudioInput() {
+        return true;
+    }
+
+    @Override
+    public String analyzeSpeechWithAudio(String systemPrompt, String userPrompt, byte[] audioData, String apiKey) {
+        log.info("[GEMINI] Iniciando análise de fala COM ÁUDIO. Modelo: {}", MODEL_NAME);
+
+        String url = BASE_URL + MODEL_NAME + ":generateContent?key=" + apiKey;
+
+        String audioBase64 = Base64.getEncoder().encodeToString(audioData);
+
+        // Build parts: text prompt + audio data
+        List<Map<String, Object>> parts = new ArrayList<>();
+        parts.add(Map.of("text", userPrompt));
+        parts.add(Map.of("inline_data", Map.of(
+                "mime_type", "audio/webm",
+                "data", audioBase64
+        )));
+
+        Map<String, Object> body = Map.of(
+                "system_instruction", Map.of("parts", List.of(Map.of("text", systemPrompt))),
+                "contents", List.of(Map.of("parts", parts)),
+                "generationConfig", Map.of(
+                        "temperature", 0.5,
+                        "maxOutputTokens", 1500
+                )
+        );
+
+        try {
+            log.info("[GEMINI] Enviando áudio ({} bytes) para análise...", audioData.length);
+            String response = postJson(url, Map.of(), body);
+            String extractedText = extractGeminiText(response);
+            log.info("[GEMINI] Análise com áudio concluída. Tamanho: {} caracteres", extractedText.length());
+            return extractedText;
+        } catch (AIProviderException e) {
+            log.warn("[GEMINI] Falha na análise com áudio, tentando somente texto: {}", e.getMessage());
+            return analyzeSpeech(systemPrompt, userPrompt, apiKey);
+        } catch (Exception e) {
+            log.warn("[GEMINI] Erro no áudio, fallback para texto: {}", e.getMessage());
+            return analyzeSpeech(systemPrompt, userPrompt, apiKey);
+        }
     }
 
     @Override

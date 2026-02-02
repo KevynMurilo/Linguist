@@ -17,6 +17,10 @@ export default function Timeline() {
   const { user, timeline, setTimeline } = useAppStore();
   const [isLoading, setIsLoading] = useState(true);
   const [days, setDays] = useState(30);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const PAGE_SIZE = 15;
 
   useEffect(() => {
     if (!user) return;
@@ -24,8 +28,10 @@ export default function Timeline() {
     const fetchTimeline = async () => {
       setIsLoading(true);
       try {
-        const data = await progressApi.getTimeline(user.id, days);
-        setTimeline(data);
+        const data = await progressApi.getTimeline(user.id, days, 0, PAGE_SIZE);
+        setTimeline(data.content);
+        setHasMore(!data.last);
+        setPage(0);
       } catch (error: any) {
         toast({
           title: t('toast.failedToLoad'),
@@ -39,6 +45,22 @@ export default function Timeline() {
 
     fetchTimeline();
   }, [user, days]);
+
+  const loadMoreTimeline = async () => {
+    if (!user || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const data = await progressApi.getTimeline(user.id, days, nextPage, PAGE_SIZE);
+      setTimeline([...timeline, ...data.content]);
+      setHasMore(!data.last);
+      setPage(nextPage);
+    } catch (error: any) {
+      toast({ title: t('toast.failedToLoad'), description: error.message, variant: 'destructive' });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // Group entries by date
   const groupByDate = (entries: TimelineEntry[]) => {
@@ -191,14 +213,19 @@ export default function Timeline() {
             ))}
 
             {/* Load More */}
-            {days < 90 && (
+            {hasMore && (
               <div className="text-center">
                 <Button
                   variant="outline"
-                  onClick={() => setDays(prev => Math.min(prev + 30, 90))}
+                  onClick={loadMoreTimeline}
+                  disabled={loadingMore}
                   className="gap-2"
                 >
-                  <ChevronDown className="w-4 h-4" />
+                  {loadingMore ? (
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
                   {t('timeline.loadMore')}
                 </Button>
               </div>

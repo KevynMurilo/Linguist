@@ -6,6 +6,8 @@ import com.linguist.core.user.dto.CreateUserRequest;
 import com.linguist.core.user.dto.LoginRequest;
 import com.linguist.core.user.dto.UpdateUserRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +62,10 @@ public class UserService {
 
     public List<User> findAll() {
         return userRepository.findAll();
+    }
+
+    public Page<User> findAll(int page, int size) {
+        return userRepository.findAll(PageRequest.of(page, size));
     }
 
     @Transactional

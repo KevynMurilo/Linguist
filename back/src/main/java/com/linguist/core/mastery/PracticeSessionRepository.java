@@ -22,6 +22,9 @@ public interface PracticeSessionRepository extends JpaRepository<PracticeSession
     List<PracticeSession> findByUserIdAndPracticeDateBetweenOrderByCreatedAtDesc(
             UUID userId, LocalDate from, LocalDate to);
 
+    Page<PracticeSession> findByUserIdAndPracticeDateBetweenOrderByCreatedAtDesc(
+            UUID userId, LocalDate from, LocalDate to, Pageable pageable);
+
     long countByUserIdAndPracticeDateAfter(UUID userId, LocalDate date);
 
     List<PracticeSession> findByUserIdAndLessonIdOrderByCreatedAtDesc(UUID userId, UUID lessonId);

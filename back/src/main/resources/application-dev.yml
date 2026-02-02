@@ -17,3 +17,7 @@ spring:
     console:
       enabled: true
       path: /h2-console
+
+whisper:
+  enabled: true
+  url: http://localhost:9000

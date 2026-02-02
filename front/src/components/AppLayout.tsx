@@ -10,7 +10,9 @@ import {
   User,
   Globe,
   Check,
-  Menu
+  Menu,
+  PenLine,
+  Headphones
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/store';
@@ -45,6 +47,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { path: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
     { path: '/lessons', label: t('nav.lessons'), icon: BookOpen },
+    { path: '/writing', label: t('nav.writing'), icon: PenLine },
+    { path: '/listening', label: t('nav.listening'), icon: Headphones },
     { path: '/mastery', label: t('nav.mastery'), icon: BarChart3 },
     { path: '/timeline', label: t('nav.history'), icon: History },
   ];

@@ -18,10 +18,18 @@ import {
   LevelCheckResponse,
   ErrorResponse,
   PracticeSessionResponseDTO,
+  ExercisesResponse,
+  SubmitExercisesResponse,
+  RelatedLessonDTO,
+  GenerateChallengeRequest,
+  SubmitWritingRequest,
+  SubmitListeningRequest,
+  ChallengeResponseDTO,
+  PageResponse,
 } from './types';
 import { useAppStore } from './store';
 
-const BASE_URL = import.meta.env.PROD ? '/api' : 'http://localhost:8080/api';
+export const BASE_URL = import.meta.env.PROD ? '/api' : 'http://localhost:8080/api';
 
 export const aiApi = {
   chat: async (message: string, userId: string): Promise<{ response: string }> => {
@@ -171,11 +179,11 @@ export const lessonApi = {
     return handleResponse<LessonResponseDTO>(response);
   },
 
-  getByUser: async (userId: string): Promise<LessonResponseDTO[]> => {
-    const response = await fetch(`${BASE_URL}/lessons/user/${userId}`, {
+  getByUser: async (userId: string, page = 0, size = 10): Promise<PageResponse<LessonResponseDTO>> => {
+    const response = await fetch(`${BASE_URL}/lessons/user/${userId}?page=${page}&size=${size}`, {
       headers: getHeaders(),
     });
-    return handleResponse<LessonResponseDTO[]>(response);
+    return handleResponse<PageResponse<LessonResponseDTO>>(response);
   },
 
   getById: async (id: string): Promise<LessonResponseDTO> => {
@@ -231,18 +239,18 @@ export const lessonApi = {
 
 // Mastery API
 export const masteryApi = {
-  getByUser: async (userId: string): Promise<CompetenceResponse[]> => {
-    const response = await fetch(`${BASE_URL}/mastery/user/${userId}`, {
+  getByUser: async (userId: string, page = 0, size = 20): Promise<PageResponse<CompetenceResponse>> => {
+    const response = await fetch(`${BASE_URL}/mastery/user/${userId}?page=${page}&size=${size}`, {
       headers: getHeaders(),
     });
-    return handleResponse<CompetenceResponse[]>(response);
+    return handleResponse<PageResponse<CompetenceResponse>>(response);
   },
 
-  getWeaknesses: async (userId: string, threshold: number = 60): Promise<CompetenceResponse[]> => {
-    const response = await fetch(`${BASE_URL}/mastery/user/${userId}/weaknesses?threshold=${threshold}`, {
+  getWeaknesses: async (userId: string, threshold = 60, page = 0, size = 20): Promise<PageResponse<CompetenceResponse>> => {
+    const response = await fetch(`${BASE_URL}/mastery/user/${userId}/weaknesses?threshold=${threshold}&page=${page}&size=${size}`, {
       headers: getHeaders(),
     });
-    return handleResponse<CompetenceResponse[]>(response);
+    return handleResponse<PageResponse<CompetenceResponse>>(response);
   },
 
   recordPractice: async (data: RecordPracticeRequest): Promise<CompetenceResponse> => {
@@ -252,6 +260,30 @@ export const masteryApi = {
       body: JSON.stringify(data),
     });
     return handleResponse<CompetenceResponse>(response);
+  },
+
+  generateExercises: async (competenceId: string): Promise<ExercisesResponse> => {
+    const response = await fetch(`${BASE_URL}/mastery/${competenceId}/exercises`, {
+      method: 'POST',
+      headers: getHeaders(true),
+    });
+    return handleResponse<ExercisesResponse>(response);
+  },
+
+  submitExercises: async (competenceId: string, correctCount: number, totalCount: number): Promise<SubmitExercisesResponse> => {
+    const response = await fetch(`${BASE_URL}/mastery/${competenceId}/submit-exercises`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ correctCount, totalCount }),
+    });
+    return handleResponse<SubmitExercisesResponse>(response);
+  },
+
+  getRelatedLessons: async (competenceId: string, page = 0, size = 10): Promise<PageResponse<RelatedLessonDTO>> => {
+    const response = await fetch(`${BASE_URL}/mastery/${competenceId}/lessons?page=${page}&size=${size}`, {
+      headers: getHeaders(),
+    });
+    return handleResponse<PageResponse<RelatedLessonDTO>>(response);
   },
 };
 
@@ -264,11 +296,11 @@ export const progressApi = {
     return handleResponse<DashboardResponse>(response);
   },
 
-  getTimeline: async (userId: string, days: number = 30): Promise<TimelineEntry[]> => {
-    const response = await fetch(`${BASE_URL}/progress/user/${userId}/timeline?days=${days}`, {
+  getTimeline: async (userId: string, days = 30, page = 0, size = 10): Promise<PageResponse<TimelineEntry>> => {
+    const response = await fetch(`${BASE_URL}/progress/user/${userId}/timeline?days=${days}&page=${page}&size=${size}`, {
       headers: getHeaders(),
     });
-    return handleResponse<TimelineEntry[]>(response);
+    return handleResponse<PageResponse<TimelineEntry>>(response);
   },
 
   checkLevel: async (userId: string): Promise<LevelCheckResponse> => {
@@ -277,5 +309,73 @@ export const progressApi = {
       headers: getHeaders(),
     });
     return handleResponse<LevelCheckResponse>(response);
+  },
+};
+
+// Challenge API
+export const challengeApi = {
+  getById: async (id: string): Promise<ChallengeResponseDTO> => {
+    const response = await fetch(`${BASE_URL}/challenges/${id}`, {
+      headers: getHeaders(),
+    });
+    return handleResponse<ChallengeResponseDTO>(response);
+  },
+
+  generateWriting: async (data: GenerateChallengeRequest): Promise<ChallengeResponseDTO> => {
+    const response = await fetch(`${BASE_URL}/challenges/writing/generate`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ChallengeResponseDTO>(response);
+  },
+
+  submitWriting: async (data: SubmitWritingRequest): Promise<ChallengeResponseDTO> => {
+    const response = await fetch(`${BASE_URL}/challenges/writing/submit`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ChallengeResponseDTO>(response);
+  },
+
+  generateListening: async (data: GenerateChallengeRequest): Promise<ChallengeResponseDTO> => {
+    const response = await fetch(`${BASE_URL}/challenges/listening/generate`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ChallengeResponseDTO>(response);
+  },
+
+  submitListening: async (data: SubmitListeningRequest): Promise<ChallengeResponseDTO> => {
+    const response = await fetch(`${BASE_URL}/challenges/listening/submit`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ChallengeResponseDTO>(response);
+  },
+
+  getWritingPending: async (userId: string): Promise<ChallengeResponseDTO | null> => {
+    const response = await fetch(`${BASE_URL}/challenges/writing/user/${userId}/pending`, {
+      headers: getHeaders(),
+    });
+    if (response.status === 204) return null;
+    return handleResponse<ChallengeResponseDTO>(response);
+  },
+
+  getWritingHistory: async (userId: string, page = 0, size = 10): Promise<any> => {
+    const response = await fetch(`${BASE_URL}/challenges/writing/user/${userId}?page=${page}&size=${size}`, {
+      headers: getHeaders(),
+    });
+    return handleResponse<any>(response);
+  },
+
+  getListeningHistory: async (userId: string, page = 0, size = 10): Promise<any> => {
+    const response = await fetch(`${BASE_URL}/challenges/listening/user/${userId}?page=${page}&size=${size}`, {
+      headers: getHeaders(),
+    });
+    return handleResponse<any>(response);
   },
 };

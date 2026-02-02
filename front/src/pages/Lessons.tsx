@@ -16,6 +16,10 @@ export default function Lessons() {
   const { toast } = useToast();
   const { user, lessons, setLessons } = useAppStore();
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const PAGE_SIZE = 12;
 
   useEffect(() => {
     if (!user) return;
@@ -23,8 +27,10 @@ export default function Lessons() {
     const fetchLessons = async () => {
       setIsLoading(true);
       try {
-        const data = await lessonApi.getByUser(user.id);
-        setLessons(data);
+        const data = await lessonApi.getByUser(user.id, 0, PAGE_SIZE);
+        setLessons(data.content);
+        setHasMore(!data.last);
+        setPage(0);
       } catch (error: any) {
         toast({
           title: t('toast.failedToLoad'),
@@ -38,6 +44,22 @@ export default function Lessons() {
 
     fetchLessons();
   }, [user]);
+
+  const loadMore = async () => {
+    if (!user || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const data = await lessonApi.getByUser(user.id, nextPage, PAGE_SIZE);
+      setLessons([...lessons, ...data.content]);
+      setHasMore(!data.last);
+      setPage(nextPage);
+    } catch (error: any) {
+      toast({ title: t('toast.failedToLoad'), description: error.message, variant: 'destructive' });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const completedLessons = lessons.filter(l => l.completed);
   const pendingLessons = lessons.filter(l => !l.completed);
@@ -148,49 +170,62 @@ export default function Lessons() {
             </CardContent>
           </Card>
         ) : (
-          <Tabs defaultValue="all" className="w-full">
-            <TabsList>
-              <TabsTrigger value="all">{t('lessons.tabAll', { count: lessons.length })}</TabsTrigger>
-              <TabsTrigger value="pending">{t('lessons.tabPending', { count: pendingLessons.length })}</TabsTrigger>
-              <TabsTrigger value="completed">{t('lessons.tabCompleted', { count: completedLessons.length })}</TabsTrigger>
-            </TabsList>
+          <>
+            <Tabs defaultValue="all" className="w-full">
+              <TabsList>
+                <TabsTrigger value="all">{t('lessons.tabAll', { count: lessons.length })}</TabsTrigger>
+                <TabsTrigger value="pending">{t('lessons.tabPending', { count: pendingLessons.length })}</TabsTrigger>
+                <TabsTrigger value="completed">{t('lessons.tabCompleted', { count: completedLessons.length })}</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="all" className="mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {lessons.map((lesson) => (
-                  <LessonCard key={lesson.id} lesson={lesson} />
-                ))}
+              <TabsContent value="all" className="mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {lessons.map((lesson) => (
+                    <LessonCard key={lesson.id} lesson={lesson} />
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="pending" className="mt-6">
+                {pendingLessons.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-12">
+                    {t('lessons.noPending')}
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {pendingLessons.map((lesson) => (
+                      <LessonCard key={lesson.id} lesson={lesson} />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="completed" className="mt-6">
+                {completedLessons.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-12">
+                    {t('lessons.noCompleted')}
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {completedLessons.map((lesson) => (
+                      <LessonCard key={lesson.id} lesson={lesson} />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+
+            {hasMore && (
+              <div className="flex justify-center pt-4">
+                <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+                  {loadingMore ? (
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+                  ) : null}
+                  {t('common.loadMore')}
+                </Button>
               </div>
-            </TabsContent>
-
-            <TabsContent value="pending" className="mt-6">
-              {pendingLessons.length === 0 ? (
-                <p className="text-center text-muted-foreground py-12">
-                  {t('lessons.noPending')}
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {pendingLessons.map((lesson) => (
-                    <LessonCard key={lesson.id} lesson={lesson} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="completed" className="mt-6">
-              {completedLessons.length === 0 ? (
-                <p className="text-center text-muted-foreground py-12">
-                  {t('lessons.noCompleted')}
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {completedLessons.map((lesson) => (
-                    <LessonCard key={lesson.id} lesson={lesson} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+            )}
+          </>
         )}
       </div>
     </AppLayout>

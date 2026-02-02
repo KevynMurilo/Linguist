@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -65,6 +64,7 @@ public class LessonController {
             @RequestPart("spokenText") String spokenText,
             @RequestPart("userId") String userId,
             @RequestPart("lessonId") String lessonId,
+            @RequestPart(value = "transcriptionMode", required = false) String transcriptionMode,
             @Parameter(description = "AI provider API key (BYOK)", required = true)
             @RequestHeader("X-AI-Key") String apiKey,
             @Parameter(description = "AI provider name", required = true, example = "gemini")
@@ -75,6 +75,7 @@ public class LessonController {
                 UUID.fromString(lessonId),
                 spokenText,
                 audio.getBytes(),
+                transcriptionMode != null ? transcriptionMode : "whisper",
                 provider,
                 apiKey));
     }
@@ -126,13 +127,16 @@ public class LessonController {
 
     @GetMapping("/user/{userId}")
     @Operation(
-            summary = "List lessons by user",
-            description = "Returns all generated lessons for a user, ordered by most recent first."
+            summary = "List lessons by user (Paginated)",
+            description = "Returns lessons for a user, ordered by most recent first."
     )
     @ApiResponse(responseCode = "200", description = "Lessons retrieved")
-    public ResponseEntity<List<LessonResponseDTO>> findByUser(@PathVariable UUID userId) {
+    public ResponseEntity<Page<LessonResponseDTO>> findByUser(
+            @PathVariable UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
-        return ResponseEntity.ok(lessonService.findByUser(userId));
+        return ResponseEntity.ok(lessonService.findByUser(userId, page, size));
     }
 
     @GetMapping("/{id}")

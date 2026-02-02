@@ -13,7 +13,9 @@ import com.linguist.core.mastery.PracticeSessionRepository;
 import com.linguist.core.user.LanguageLevel;
 import com.linguist.core.user.User;
 import com.linguist.core.user.UserService;
+import com.linguist.core.transcription.TranscriptionService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -37,17 +39,21 @@ public class LessonService {
     private final AIClientFactory aiClientFactory;
     private final ObjectMapper objectMapper;
 
+    @Autowired(required = false)
+    private TranscriptionService transcriptionService;
+
     @Transactional
     public LessonResponseDTO generate(UUID userId, String topic, String targetLanguage, String provider, String apiKey) {
         User user = userService.findById(userId);
         AIClient client = aiClientFactory.getClient(provider);
         List<String> weakRules = competenceService.getWeakRuleNames(userId);
+        List<String> allRules = competenceService.getAllRuleNames(userId);
 
         String effectiveTargetLanguage = (targetLanguage != null && !targetLanguage.isBlank())
                 ? targetLanguage
                 : user.getTargetLanguage();
 
-        String systemPrompt = buildGenerateSystemPrompt(user, effectiveTargetLanguage, weakRules);
+        String systemPrompt = buildGenerateSystemPrompt(user, effectiveTargetLanguage, weakRules, allRules);
         String userPrompt = String.format("Generate lesson about: %s", topic);
 
         try {
@@ -60,20 +66,34 @@ public class LessonService {
     }
 
     @Transactional
-    public SpeechAnalysisResponse analyzeSpeech(UUID userId, UUID lessonId, String spokenText, byte[] audioData, String provider, String apiKey) {
+    public SpeechAnalysisResponse analyzeSpeech(UUID userId, UUID lessonId, String spokenText, byte[] audioData, String transcriptionMode, String provider, String apiKey) {
         User user = userService.findById(userId);
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lesson", lessonId));
 
-        int totalWords = countWords(lesson.getSimplifiedText());
-        int spokenWords = countWords(spokenText);
-        int coverage = (int) (((double) spokenWords / totalWords) * 100);
-
         String lessonTargetLang = lesson.getTargetLanguage() != null ? lesson.getTargetLanguage() : user.getTargetLanguage();
 
+        // Use transcription based on user's chosen mode
+        String effectiveText = spokenText;
+        boolean hasWhisper = false;
+        boolean useWhisper = "whisper".equalsIgnoreCase(transcriptionMode);
+
+        if (useWhisper && transcriptionService != null && audioData != null && audioData.length > 0) {
+            String whisperText = transcriptionService.transcribe(audioData, lessonTargetLang);
+            if (whisperText != null && !whisperText.isBlank()) {
+                effectiveText = whisperText;
+                hasWhisper = true;
+            }
+        }
+
+        int totalWords = countWords(lesson.getSimplifiedText());
+        int spokenWords = countWords(effectiveText);
+        int coverage = (int) (((double) spokenWords / totalWords) * 100);
+
         AIClient client = aiClientFactory.getClient(provider);
-        String systemPrompt = buildAnalysisSystemPrompt(user, lessonTargetLang, coverage, totalWords, spokenWords);
-        String userPrompt = String.format("ORIGINAL: \"%s\"\nSTUDENT: \"%s\"", lesson.getSimplifiedText(), spokenText);
+        String systemPrompt = buildAnalysisSystemPrompt(user, lessonTargetLang, coverage, totalWords, spokenWords, hasWhisper);
+
+        String userPrompt = String.format("ORIGINAL: \"%s\"\nSTUDENT: \"%s\"", lesson.getSimplifiedText(), effectiveText);
 
         String result = client.analyzeSpeech(systemPrompt, userPrompt, apiKey);
         SpeechAnalysisResponse analysis = parseSpeechAnalysis(result);
@@ -144,7 +164,10 @@ public class LessonService {
 
     private int countWords(String text) {
         if (text == null || text.isBlank()) return 0;
-        return text.trim().toLowerCase().replaceAll("[^a-z ]", "").split("\\s+").length;
+        // Remove punctuation but keep Unicode letters, digits and spaces
+        String cleaned = text.trim().replaceAll("[^\\p{L}\\p{N} ]", "").replaceAll("\\s+", " ").trim();
+        if (cleaned.isEmpty()) return 0;
+        return cleaned.split(" ").length;
     }
 
     private String buildLanguageInstruction(User user, String targetLanguage) {
@@ -173,15 +196,54 @@ public class LessonService {
                 targetName, nativeName, nativeName);
     }
 
-    private String buildGenerateSystemPrompt(User user, String targetLanguage, List<String> weakRules) {
+    private String buildGenerateSystemPrompt(User user, String targetLanguage, List<String> weakRules, List<String> allRules) {
         String nativeName = LanguageNameMapper.getFullName(user.getNativeLanguage());
         String targetName = LanguageNameMapper.getFullName(targetLanguage);
+        var level = user.getLevel();
 
-        return new StringBuilder()
-                .append("You are a linguistic coach using the Shadowing method.\n")
-                .append(buildLanguageInstruction(user, targetLanguage)).append("\n")
-                .append("WEAKNESSES: ").append(String.join(", ", weakRules)).append("\n")
-                .append("IMPORTANT RULES:\n")
+        StringBuilder sb = new StringBuilder()
+                .append("You are a linguistic coach using the Shadowing method for a ").append(level).append(" student.\n")
+                .append(buildLanguageInstruction(user, targetLanguage)).append("\n");
+
+        if (!weakRules.isEmpty()) {
+            sb.append("WEAKNESSES (reinforce these): ").append(String.join(", ", weakRules)).append("\n");
+        }
+
+        sb.append("\nCONTENT COMPLEXITY FOR LEVEL ").append(level).append(":\n");
+        switch (level) {
+            case A1 -> sb.append("- 3-5 very simple sentences. Present tense ONLY.\n")
+                    .append("- Top 100 most common words. Short, clear sentences.\n")
+                    .append("- Topics: greetings, family, food, numbers, colors, basic descriptions.\n")
+                    .append("- Grammar focus: articles, basic conjugation, simple nouns/adjectives.\n");
+            case A2 -> sb.append("- 5-8 simple sentences. Present and simple past tense.\n")
+                    .append("- Basic expanded vocabulary (~500 words). Simple connectors (and, but, because).\n")
+                    .append("- Topics: daily routines, travel basics, shopping, weather.\n")
+                    .append("- Grammar focus: past tense, basic prepositions, question formation.\n");
+            case B1 -> sb.append("- 8-12 sentences with some compound structures.\n")
+                    .append("- Intermediate vocabulary. Multiple tenses including future.\n")
+                    .append("- Topics: work, education, opinions, experiences, plans.\n")
+                    .append("- Grammar focus: varied tenses, comparatives, connectors, modal verbs.\n");
+            case B2 -> sb.append("- 12-18 sentences with complex structures.\n")
+                    .append("- Upper-intermediate vocabulary including collocations.\n")
+                    .append("- Topics: abstract concepts, current events, cultural topics.\n")
+                    .append("- Grammar focus: conditionals, subjunctive, passive voice, relative clauses.\n");
+            case C1 -> sb.append("- 15-25 sentences with sophisticated language.\n")
+                    .append("- Advanced vocabulary including idioms and formal expressions.\n")
+                    .append("- Topics: professional, academic, literary, philosophical.\n")
+                    .append("- Grammar focus: all structures, nuanced tense usage, discourse markers.\n");
+            case C2 -> sb.append("- 20-30 sentences with near-native complexity.\n")
+                    .append("- Literary/academic register. Rare vocabulary, specialized terms.\n")
+                    .append("- Topics: specialized fields, literary criticism, philosophical discourse.\n")
+                    .append("- Grammar focus: stylistic choices, register variation, rhetorical devices.\n");
+        }
+        sb.append("\n");
+
+        if (!allRules.isEmpty()) {
+            sb.append("EXISTING GRAMMAR RULES in student's graph: ").append(String.join(", ", allRules)).append("\n")
+              .append("CRITICAL: When the lesson covers grammar that matches an EXISTING RULE above, you MUST reuse the EXACT same name in grammarFocus. Do NOT create variations or synonyms.\n");
+        }
+
+        return sb.append("IMPORTANT RULES:\n")
                 .append("- NEVER include citation references like [1], [2], [3] or any numbered references.\n")
                 .append("- Do NOT reference external sources or videos.\n")
                 .append("- phoneticMarkers: Write how EACH word from simplifiedText SOUNDS using ONLY ").append(nativeName).append(" letters.\n")
@@ -208,13 +270,49 @@ public class LessonService {
                 .toString();
     }
 
-    private String buildAnalysisSystemPrompt(User user, String targetLanguage, int coverage, int total, int spoken) {
-        return new StringBuilder()
-                .append("Strict Auditor.\n")
+    private String buildAnalysisSystemPrompt(User user, String targetLanguage, int coverage, int total, int spoken, boolean hasWhisper) {
+        String nativeName = LanguageNameMapper.getFullName(user.getNativeLanguage());
+        StringBuilder sb = new StringBuilder()
+                .append("You are a strict but encouraging speech and pronunciation auditor for language learners.\n")
                 .append(buildLanguageInstruction(user, targetLanguage)).append("\n")
                 .append("Coverage: ").append(coverage).append("% (").append(spoken).append("/").append(total).append(" words).\n")
-                .append("70% weight on completeness. Respond ONLY with valid JSON: {accuracy, errors: [{expected, got, rule, tip}], feedback}")
-                .toString();
+                .append("SCORING RULES:\n")
+                .append("- 40% weight on correctness (grammar, vocabulary, word choice).\n")
+                .append("- 25% weight on completeness (coverage of original text).\n")
+                .append("- 20% weight on fluency (natural flow, word order).\n")
+                .append("- 15% weight on pronunciation (based on transcription differences).\n")
+                .append("ERROR RULES:\n")
+                .append("- For each error, 'rule' MUST be a short grammar/pronunciation rule name (e.g. 'Present Perfect', 'Article Usage', 'Th Sound', 'Vowel Length', 'Word Stress', 'R Pronunciation', 'Intonation Pattern').\n")
+                .append("- 'tip' MUST be a practical, actionable explanation in ").append(nativeName).append(" on how to fix the mistake.\n");
+
+        if (hasWhisper) {
+            sb.append("PRONUNCIATION ANALYSIS (CRITICAL):\n")
+                    .append("- The STUDENT text was transcribed from real audio by Whisper (speech recognition).\n")
+                    .append("- Compare what Whisper heard (STUDENT) against the ORIGINAL to detect pronunciation issues.\n")
+                    .append("- When Whisper hears a different word than expected (e.g. 'sink' instead of 'think'), this reveals a pronunciation error.\n")
+                    .append("- Common pronunciation patterns to detect:\n")
+                    .append("  * 'th' sounds: 'think'→'sink'/'tink', 'the'→'de'/'ze' (Th Sound)\n")
+                    .append("  * vowel confusion: 'ship'→'sheep', 'bit'→'beat' (Vowel Length)\n")
+                    .append("  * final consonants dropped: 'walked'→'walk', 'cats'→'cat' (Final Consonant)\n")
+                    .append("  * r/l confusion: 'right'→'light' (R/L Distinction)\n")
+                    .append("  * word stress: wrong syllable emphasis (Word Stress)\n")
+                    .append("  * silent letters missed: 'knight'→'k-night' (Silent Letters)\n")
+                    .append("  * connected speech: words merged or separated wrong (Connected Speech)\n")
+                    .append("- For each pronunciation error, set 'expected' to the correct word and 'got' to what was actually heard.\n");
+        } else {
+            sb.append("- Include pronunciation errors when the spoken word sounds wrong (e.g. 'got':'tink' instead of 'expected':'think').\n");
+        }
+
+        sb.append("FEEDBACK RULES:\n")
+                .append("- 'feedback' MUST be written in ").append(nativeName).append(".\n")
+                .append("- Start with what the student did well, then what to improve.\n")
+                .append("- Always include a PRONUNCIATION section in the feedback with:\n")
+                .append("  * Which sounds the student struggles with.\n")
+                .append("  * Practical mouth/tongue position tips (e.g. 'for th, place tongue between teeth').\n")
+                .append("  * Accent patterns detected (e.g. 'you tend to replace th with s, common for Portuguese speakers').\n")
+                .append("- If pronunciation was good, praise it specifically.\n")
+                .append("Respond ONLY with valid JSON: {accuracy, errors: [{expected, got, rule, tip}], feedback}");
+        return sb.toString();
     }
 
     private String buildExplainWordSystemPrompt(User user, String targetLanguage, Lesson lesson) {
@@ -227,10 +325,25 @@ public class LessonService {
     }
 
     private void saveFullPracticeResults(User user, Lesson lesson, SpeechAnalysisResponse analysis, byte[] audio, String text) {
+        // Collect normalized error rule names
+        java.util.Set<String> failedRules = new java.util.HashSet<>();
         if (analysis.getErrors() != null) {
             analysis.getErrors().stream()
                     .filter(e -> e.getRule() != null && !e.getRule().isBlank())
-                    .forEach(e -> competenceService.recordPractice(user.getId(), e.getRule(), false));
+                    .forEach(e -> {
+                        String normalized = normalizeRuleName(e.getRule());
+                        failedRules.add(normalized);
+                        competenceService.recordPractice(user.getId(), normalized, false);
+                    });
+        }
+
+        // Record SUCCESS for grammar rules in the lesson that were NOT in the errors
+        if (lesson.getGrammarFocus() != null) {
+            lesson.getGrammarFocus().stream()
+                    .filter(rule -> rule != null && !rule.isBlank())
+                    .map(this::normalizeRuleName)
+                    .filter(rule -> !failedRules.contains(rule))
+                    .forEach(rule -> competenceService.recordPractice(user.getId(), rule, true));
         }
 
         practiceSessionRepository.save(PracticeSession.builder()
@@ -248,7 +361,7 @@ public class LessonService {
     private Lesson parseAndSaveLesson(String json, User user, String topic, String targetLanguage) throws Exception {
         JsonNode root = objectMapper.readTree(cleanJson(json));
         List<String> grammar = new ArrayList<>();
-        root.path("grammarFocus").forEach(n -> grammar.add(n.asText()));
+        root.path("grammarFocus").forEach(n -> grammar.add(normalizeRuleName(n.asText())));
 
         String teachingNotes = root.path("teachingNotes").asText();
         teachingNotes = cleanCitationReferences(teachingNotes);
@@ -356,6 +469,25 @@ public class LessonService {
                 .build();
     }
 
+    private String normalizeRuleName(String rule) {
+        if (rule == null || rule.isBlank()) return rule;
+        String trimmed = rule.trim().replaceAll("\\s+", " ");
+        StringBuilder sb = new StringBuilder();
+        boolean capitalizeNext = true;
+        for (char c : trimmed.toCharArray()) {
+            if (c == ' ') {
+                sb.append(c);
+                capitalizeNext = true;
+            } else if (capitalizeNext) {
+                sb.append(Character.toUpperCase(c));
+                capitalizeNext = false;
+            } else {
+                sb.append(Character.toLowerCase(c));
+            }
+        }
+        return sb.toString();
+    }
+
     private String cleanJson(String json) {
         return json.replaceAll("(?s).*?(\\{.*\\}).*", "$1");
     }
@@ -369,6 +501,12 @@ public class LessonService {
     public List<LessonResponseDTO> findByUser(UUID userId) {
         return lessonRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(this::mapToDTO).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<LessonResponseDTO> findByUser(UUID userId, int page, int size) {
+        return lessonRepository.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size))
+                .map(this::mapToDTO);
     }
 
     @Transactional(readOnly = true)

@@ -18,7 +18,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+
 import java.util.UUID;
 
 @RestController
@@ -73,12 +74,13 @@ public class UserController {
     }
 
     @GetMapping
-    @Operation(summary = "List all users", description = "Returns all registered users.")
+    @Operation(summary = "List all users (Paginated)", description = "Returns registered users with pagination.")
     @ApiResponse(responseCode = "200", description = "Users retrieved")
-    public ResponseEntity<List<UserResponse>> findAll() {
-        List<UserResponse> users = userService.findAll().stream()
-                .map(UserResponse::from)
-                .toList();
+    public ResponseEntity<Page<UserResponse>> findAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<UserResponse> users = userService.findAll(page, size)
+                .map(UserResponse::from);
         return ResponseEntity.ok(users);
     }
 

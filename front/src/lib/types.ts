@@ -1,5 +1,16 @@
 // API Types for Linguist-Core
 
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+  empty: boolean;
+}
+
 export type LanguageLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 export type AIProvider = 'gemini' | 'openai' | 'perplexity' | 'deepseek';
 
@@ -104,6 +115,35 @@ export interface SpeechAnalysisResponse {
   accuracy: number;
   errors: SpeechError[];
   feedback: string;
+}
+
+// Exercise types
+export interface ExerciseDTO {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
+
+export interface RelatedLessonDTO {
+  id: string;
+  topic: string;
+  targetLanguage: string;
+  bestScore: number;
+  completed: boolean;
+}
+
+export interface ExercisesResponse {
+  competence: CompetenceResponse;
+  exercises: ExerciseDTO[];
+  relatedLessons: RelatedLessonDTO[];
+}
+
+export interface SubmitExercisesResponse {
+  previousMastery: number;
+  newMastery: number;
+  change: number;
+  competence: CompetenceResponse;
 }
 
 // Mastery types
@@ -241,4 +281,73 @@ export function getLevelColor(level: LanguageLevel): string {
     C2: 'bg-level-c2',
   };
   return colors[level];
+}
+
+// ─── Challenge Types ────────────────────────────────────────
+
+export type ChallengeType = 'WRITING' | 'LISTENING';
+
+export interface GenerateChallengeRequest {
+  userId: string;
+  targetLanguage?: string;
+}
+
+export interface SubmitWritingRequest {
+  userId: string;
+  challengeId: string;
+  text: string;
+}
+
+export interface SubmitListeningRequest {
+  userId: string;
+  challengeId: string;
+  typedText: string;
+}
+
+export interface ChallengeResponseDTO {
+  id: string;
+  type: ChallengeType;
+  level: LanguageLevel;
+  targetLanguage: string;
+  prompt: string;
+  originalText: string | null;
+  studentResponse: string | null;
+  score: number | null;
+  feedback: string | null;
+  analysisJson: string | null;
+  completed: boolean;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface WritingAnalysis {
+  score: number;
+  feedback: string;
+  errors: WritingError[];
+  grading: {
+    grammar: number;
+    vocabulary: number;
+    coherence: number;
+    spelling: number;
+    levelAppropriateness: number;
+  };
+}
+
+export interface WritingError {
+  original: string;
+  correction: string;
+  rule: string;
+  explanation: string;
+}
+
+export interface ListeningAnalysis {
+  score: number;
+  feedback: string;
+  words: WordComparison[];
+}
+
+export interface WordComparison {
+  expected: string;
+  got: string | null;
+  correct: boolean;
 }

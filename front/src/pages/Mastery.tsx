@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { BarChart3, TrendingUp, TrendingDown, Minus, Dumbbell } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/components/AppLayout';
 import { MasteryBar } from '@/components/MasteryBar';
@@ -12,10 +14,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTranslation, LOCALE_BCP47 } from '@/i18n';
 
 export default function Mastery() {
+  const navigate = useNavigate();
   const { t, locale } = useTranslation();
   const { toast } = useToast();
   const { user, competences, setCompetences } = useAppStore();
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const PAGE_SIZE = 20;
 
   useEffect(() => {
     if (!user) return;
@@ -23,8 +30,10 @@ export default function Mastery() {
     const fetchCompetences = async () => {
       setIsLoading(true);
       try {
-        const data = await masteryApi.getByUser(user.id);
-        setCompetences(data);
+        const data = await masteryApi.getByUser(user.id, 0, PAGE_SIZE);
+        setCompetences(data.content);
+        setHasMore(!data.last);
+        setPage(0);
       } catch (error: any) {
         toast({
           title: t('toast.failedToLoad'),
@@ -38,6 +47,22 @@ export default function Mastery() {
 
     fetchCompetences();
   }, [user]);
+
+  const loadMore = async () => {
+    if (!user || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const data = await masteryApi.getByUser(user.id, nextPage, PAGE_SIZE);
+      setCompetences([...competences, ...data.content]);
+      setHasMore(!data.last);
+      setPage(nextPage);
+    } catch (error: any) {
+      toast({ title: t('toast.failedToLoad'), description: error.message, variant: 'destructive' });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // Group competences by level
   const groupByLevel = (comps: CompetenceResponse[]) => {
@@ -80,18 +105,22 @@ export default function Mastery() {
       : 'stable';
 
     return (
-      <div className="p-4 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
+      <div
+        className="p-4 rounded-lg border bg-card hover:bg-muted/30 transition-colors cursor-pointer group"
+        onClick={() => navigate(`/mastery/${competence.id}`)}
+      >
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <h4 className="font-medium">{competence.ruleName}</h4>
+            <h4 className="font-medium group-hover:text-primary transition-colors">{competence.ruleName}</h4>
             <p className="text-xs text-muted-foreground">
               {t('mastery.practiced', { count: competence.practiceCount, time: getRelativeTime(competence.lastPracticed) })}
             </p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             {trend === 'up' && <TrendingUp className="w-4 h-4 text-success" />}
             {trend === 'down' && <TrendingDown className="w-4 h-4 text-destructive" />}
             {trend === 'stable' && <Minus className="w-4 h-4 text-muted-foreground" />}
+            <Dumbbell className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </div>
         <MasteryBar value={competence.masteryLevel} showPercentage size="sm" />
@@ -229,6 +258,17 @@ export default function Mastery() {
                 </Card>
               </TabsContent>
             </Tabs>
+
+            {hasMore && (
+              <div className="flex justify-center pt-4">
+                <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+                  {loadingMore ? (
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+                  ) : null}
+                  {t('common.loadMore')}
+                </Button>
+              </div>
+            )}
           </>
         )}
       </div>

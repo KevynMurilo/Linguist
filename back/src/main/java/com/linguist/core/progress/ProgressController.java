@@ -13,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import io.swagger.v3.oas.annotations.Parameter;
+import org.springframework.data.domain.Page;
+
 import java.util.UUID;
 
 @RestController
@@ -40,15 +42,17 @@ public class ProgressController {
 
     @GetMapping("/user/{userId}/timeline")
     @Operation(
-            summary = "Get practice session timeline",
-            description = "Returns a chronological list of all practice sessions for the given period. "
+            summary = "Get practice session timeline (Paginated)",
+            description = "Returns a paginated chronological list of practice sessions for the given period. "
                     + "Each entry includes the lesson topic, accuracy, error count, and AI feedback."
     )
     @ApiResponse(responseCode = "200", description = "Timeline retrieved")
-    public ResponseEntity<List<TimelineEntry>> getTimeline(
+    public ResponseEntity<Page<TimelineEntry>> getTimeline(
             @PathVariable UUID userId,
-            @RequestParam(defaultValue = "30") int days) {
-        return ResponseEntity.ok(progressService.getTimeline(userId, days));
+            @RequestParam(defaultValue = "30") int days,
+            @Parameter(description = "Zero-based page index") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "The size of the page") @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(progressService.getTimeline(userId, days, page, size));
     }
 
     @PostMapping("/user/{userId}/check-level")

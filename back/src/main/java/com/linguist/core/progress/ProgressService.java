@@ -14,6 +14,8 @@ import com.linguist.core.user.UserRepository;
 import com.linguist.core.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -99,16 +101,29 @@ public class ProgressService {
                 .findByUserIdAndPracticeDateBetweenOrderByCreatedAtDesc(userId, from, LocalDate.now());
 
         return sessions.stream()
-                .map(s -> TimelineEntry.builder()
-                        .sessionId(s.getId())
-                        .lessonId(s.getLesson() != null ? s.getLesson().getId() : null)
-                        .lessonTopic(s.getLesson() != null ? s.getLesson().getTopic() : "Deleted Lesson")
-                        .accuracy(s.getAccuracy())
-                        .errorCount(s.getErrorCount())
-                        .feedback(s.getFeedback())
-                        .practicedAt(s.getCreatedAt())
-                        .build())
+                .map(this::mapToTimelineEntry)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TimelineEntry> getTimeline(UUID userId, int days, int page, int size) {
+        LocalDate from = LocalDate.now().minusDays(days);
+
+        return practiceSessionRepository
+                .findByUserIdAndPracticeDateBetweenOrderByCreatedAtDesc(userId, from, LocalDate.now(), PageRequest.of(page, size))
+                .map(this::mapToTimelineEntry);
+    }
+
+    private TimelineEntry mapToTimelineEntry(PracticeSession s) {
+        return TimelineEntry.builder()
+                .sessionId(s.getId())
+                .lessonId(s.getLesson() != null ? s.getLesson().getId() : null)
+                .lessonTopic(s.getLesson() != null ? s.getLesson().getTopic() : "Deleted Lesson")
+                .accuracy(s.getAccuracy())
+                .errorCount(s.getErrorCount())
+                .feedback(s.getFeedback())
+                .practicedAt(s.getCreatedAt())
+                .build();
     }
 
     @Transactional

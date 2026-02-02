@@ -36,12 +36,12 @@ export default function Dashboard() {
       try {
         const [dashboardData, competenceData, lessonData] = await Promise.all([
           progressApi.getDashboard(user.id),
-          masteryApi.getByUser(user.id),
-          lessonApi.getByUser(user.id),
+          masteryApi.getByUser(user.id, 0, 100),
+          lessonApi.getByUser(user.id, 0, 3),
         ]);
         setDashboard(dashboardData);
-        setCompetences(competenceData);
-        setLessons(lessonData);
+        setCompetences(competenceData.content);
+        setLessons(lessonData.content);
       } catch (error: any) {
         toast({
           title: t('toast.failedToLoad'),

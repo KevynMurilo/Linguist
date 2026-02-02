@@ -3,7 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Play, Pause, RotateCcw, Mic, Square, Volume2, Loader2,
   CheckCircle, XCircle, AlertTriangle, BookOpen, X,
-  History as HistoryIcon, MessageSquare, Trash2, ChevronLeft, ChevronRight, AlertCircle
+  History as HistoryIcon, MessageSquare, Trash2, ChevronLeft, ChevronRight, AlertCircle,
+  AudioWaveform, Globe
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { AppLayout } from '@/components/AppLayout';
 import { LevelBadge } from '@/components/LevelBadge';
 import { useAppStore } from '@/lib/store';
-import { lessonApi, progressApi, masteryApi } from '@/lib/api';
+import { lessonApi, progressApi, masteryApi, BASE_URL } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { SpeechAnalysisResponse, LessonResponseDTO, ExplainWordResponse, PracticeSessionResponseDTO } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,7 @@ export default function LessonPractice() {
   const [isMicReady, setIsMicReady] = useState(false);
   const [spokenText, setSpokenText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [hasRecordedAudio, setHasRecordedAudio] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<SpeechAnalysisResponse | null>(null);
   const [playingSessionId, setPlayingSessionId] = useState<string | null>(null);
   
@@ -48,6 +50,7 @@ export default function LessonPractice() {
 
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [currentWordRange, setCurrentWordRange] = useState({ start: -1, end: -1 });
+  const [transcriptionMode, setTranscriptionMode] = useState<'whisper' | 'browser'>('whisper');
 
   const charIndexRef = useRef(0);
   const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -191,24 +194,34 @@ export default function LessonPractice() {
     setIsPlaying(false);
     setCurrentWordRange({ start: -1, end: -1 });
     setSpokenText('');
+    setHasRecordedAudio(false);
     setAnalysisResult(null);
   };
 
   const handleStartRecording = async () => {
-    if (!recognitionRef.current) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       audioChunksRef.current = [];
+      setHasRecordedAudio(false);
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+          setHasRecordedAudio(true);
+        }
       };
-      mediaRecorder.start();
+      mediaRecorder.start(500); // collect chunks every 500ms for real-time detection
       mediaRecorderRef.current = mediaRecorder;
       setSpokenText('');
       setAnalysisResult(null);
       setIsRecording(true);
-      recognitionRef.current.start();
+
+      if (transcriptionMode === 'browser' && recognitionRef.current) {
+        recognitionRef.current.start();
+      } else {
+        // Whisper mode: no browser transcription, just record audio
+        setIsMicReady(true);
+      }
     } catch (err) {
       toast({ title: "Microphone Error", description: "Access denied", variant: "destructive" });
     }
@@ -219,14 +232,20 @@ export default function LessonPractice() {
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
     }
-    if (recognitionRef.current) {
+    if (transcriptionMode === 'browser' && recognitionRef.current) {
       recognitionRef.current.stop();
+    } else {
+      setIsMicReady(false);
     }
     setIsRecording(false);
   };
 
   const handleAnalyze = async () => {
-    if (!user || !lesson || !spokenText.trim() || !aiConfig) return;
+    const hasText = spokenText.trim().length > 0;
+    const hasAudio = hasRecordedAudio;
+    if (!user || !lesson || !aiConfig) return;
+    if (transcriptionMode === 'browser' && !hasText) return;
+    if (transcriptionMode === 'whisper' && !hasAudio) return;
     setIsAnalyzing(true);
     try {
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
@@ -235,15 +254,16 @@ export default function LessonPractice() {
       formData.append('spokenText', spokenText.trim());
       formData.append('userId', user.id);
       formData.append('lessonId', lesson.id);
+      formData.append('transcriptionMode', transcriptionMode);
       const result = await lessonApi.analyzeSpeech(formData);
       setAnalysisResult(result);
       const [newDashboard, newCompetences, updatedLesson] = await Promise.all([
         progressApi.getDashboard(user.id),
-        masteryApi.getByUser(user.id),
+        masteryApi.getByUser(user.id, 0, 100),
         lessonApi.getById(lesson.id)
       ]);
       setDashboard(newDashboard);
-      setCompetences(newCompetences);
+      setCompetences(newCompetences.content);
       setLesson(updatedLesson);
       await fetchHistory(0);
     } catch (error: any) {
@@ -268,7 +288,8 @@ export default function LessonPractice() {
     }
     stopCurrentHistoryAudio();
     try {
-      const response = await fetch(`http://localhost:8080${audioUrl}`, {
+      const apiBase = BASE_URL.replace(/\/api$/, '');
+      const response = await fetch(`${apiBase}${audioUrl}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const blob = await response.blob();
@@ -533,6 +554,49 @@ export default function LessonPractice() {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Mic className="w-5 h-5" />{t('practice.yourTurn')}</CardTitle><CardDescription>{t('practice.yourTurnDesc')}</CardDescription></CardHeader>
           <CardContent className="space-y-4">
+            {/* Transcription mode selector */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">{t('practice.transcriptionMode')}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTranscriptionMode('whisper')}
+                  disabled={isRecording}
+                  className={cn(
+                    "flex items-start gap-3 p-3 rounded-lg border-2 text-left transition-all",
+                    transcriptionMode === 'whisper'
+                      ? "border-primary bg-primary/5"
+                      : "border-muted hover:border-primary/30",
+                    isRecording && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <AudioWaveform className={cn("w-5 h-5 mt-0.5 shrink-0", transcriptionMode === 'whisper' ? "text-primary" : "text-muted-foreground")} />
+                  <div>
+                    <p className={cn("text-sm font-semibold", transcriptionMode === 'whisper' ? "text-primary" : "text-foreground")}>{t('practice.modeWhisper')}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t('practice.modeWhisperDesc')}</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTranscriptionMode('browser')}
+                  disabled={isRecording}
+                  className={cn(
+                    "flex items-start gap-3 p-3 rounded-lg border-2 text-left transition-all",
+                    transcriptionMode === 'browser'
+                      ? "border-primary bg-primary/5"
+                      : "border-muted hover:border-primary/30",
+                    isRecording && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <Globe className={cn("w-5 h-5 mt-0.5 shrink-0", transcriptionMode === 'browser' ? "text-primary" : "text-muted-foreground")} />
+                  <div>
+                    <p className={cn("text-sm font-semibold", transcriptionMode === 'browser' ? "text-primary" : "text-foreground")}>{t('practice.modeBrowser')}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t('practice.modeBrowserDesc')}</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
             <div className="flex items-center gap-3">
               {!isRecording ? (
                 <Button size="lg" className="btn-accent gap-2" onClick={handleStartRecording}><Mic className="w-5 h-5" />{t('practice.startRecording')}</Button>
@@ -543,7 +607,7 @@ export default function LessonPractice() {
               )}
               {isRecording && isMicReady && <div className="flex items-center gap-2"><span className="w-3 h-3 bg-destructive rounded-full animate-pulse" /><span className="text-sm text-muted-foreground">{t('practice.recording')}</span></div>}
             </div>
-            {spokenText && (
+            {transcriptionMode === 'browser' && spokenText && (
               <div className="p-4 bg-muted/50 rounded-lg border-l-4 border-primary">
                 <p className="text-foreground transition-all duration-75">
                   {spokenText}
@@ -551,7 +615,21 @@ export default function LessonPractice() {
                 </p>
               </div>
             )}
-            {spokenText && !isRecording && <Button className="w-full btn-gradient" size="lg" onClick={handleAnalyze} disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : t('practice.analyzeSpeech')}</Button>}
+            {transcriptionMode === 'whisper' && !isRecording && hasRecordedAudio && (
+              <div className="p-4 bg-muted/50 rounded-lg border-l-4 border-violet-500">
+                <p className="text-sm text-muted-foreground">
+                  {t('practice.whisperReady')}
+                </p>
+              </div>
+            )}
+            {!isRecording && (
+              (transcriptionMode === 'browser' && spokenText) ||
+              (transcriptionMode === 'whisper' && hasRecordedAudio)
+            ) && (
+              <Button className="w-full btn-gradient" size="lg" onClick={handleAnalyze} disabled={isAnalyzing}>
+                {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : t('practice.analyzeSpeech')}
+              </Button>
+            )}
           </CardContent>
         </Card>
 

@@ -12,6 +12,11 @@ import Lessons from "./pages/Lessons";
 import NewLesson from "./pages/NewLesson";
 import LessonPractice from "./pages/LessonPractice";
 import Mastery from "./pages/Mastery";
+import RulePractice from "./pages/RulePractice";
+import WritingChallenge from "./pages/WritingChallenge";
+import WritingChallengeDetail from "./pages/WritingChallengeDetail";
+import ListeningChallenge from "./pages/ListeningChallenge";
+import ListeningChallengeDetail from "./pages/ListeningChallengeDetail";
 import Timeline from "./pages/Timeline";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -32,13 +37,21 @@ function TitleHandler() {
       "/lessons": t('nav.lessons') + " | Linguist",
       "/lessons/new": t('practice.newLesson') || "New Lesson | Linguist",
       "/mastery": t('nav.mastery') + " | Linguist",
+      "/writing": t('nav.writing') + " | Linguist",
+      "/listening": t('nav.listening') + " | Linguist",
       "/timeline": t('nav.history') + " | Linguist",
       "/settings": t('nav.settings') + " | Linguist",
     };
 
     // Lógica para rotas com ID (ex: /lessons/123)
-    if (path.startsWith("/lessons/") && path !== "/lessons/new") {
+    if (path.startsWith("/mastery/") && path !== "/mastery") {
+      document.title = "Rule Practice | Linguist";
+    } else if (path.startsWith("/lessons/") && path !== "/lessons/new") {
       document.title = "Practice Session | Linguist";
+    } else if (path.startsWith("/writing/") && path !== "/writing") {
+      document.title = t('nav.writing') + " Challenge | Linguist";
+    } else if (path.startsWith("/listening/") && path !== "/listening") {
+      document.title = t('nav.listening') + " Challenge | Linguist";
     } else {
       document.title = routeTitles[path] || "Linguist";
     }
@@ -74,6 +87,11 @@ export default function App() {
               <Route path="/lessons/new" element={<ProtectedRoute><NewLesson /></ProtectedRoute>} />
               <Route path="/lessons/:id" element={<ProtectedRoute><LessonPractice /></ProtectedRoute>} />
               <Route path="/mastery" element={<ProtectedRoute><Mastery /></ProtectedRoute>} />
+              <Route path="/mastery/:id" element={<ProtectedRoute><RulePractice /></ProtectedRoute>} />
+              <Route path="/writing" element={<ProtectedRoute><WritingChallenge /></ProtectedRoute>} />
+              <Route path="/writing/:id" element={<ProtectedRoute><WritingChallengeDetail /></ProtectedRoute>} />
+              <Route path="/listening" element={<ProtectedRoute><ListeningChallenge /></ProtectedRoute>} />
+              <Route path="/listening/:id" element={<ProtectedRoute><ListeningChallengeDetail /></ProtectedRoute>} />
               <Route path="/timeline" element={<ProtectedRoute><Timeline /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               
