@@ -38,6 +38,7 @@ export interface UpdateUserRequest {
   name?: string;
   targetLanguage?: string;
   level?: LanguageLevel;
+  dailyGoal?: number;
 }
 
 export interface UserResponse {
@@ -51,6 +52,7 @@ export interface UserResponse {
   longestStreak: number;
   lastPracticeDate: string | null;
   totalPracticeSessions: number;
+  dailyGoal: number;
   createdAt: string;
 }
 
@@ -154,6 +156,7 @@ export interface CompetenceResponse {
   failCount: number;
   practiceCount: number;
   lastPracticed: string | null;
+  nextReviewAt: string | null;
 }
 
 export interface RecordPracticeRequest {
@@ -180,14 +183,20 @@ export interface DashboardResponse {
   lastPracticeDate: string | null;
   sessionsLast7Days: number;
   weakestRules: string[];
+  dailyGoalTarget: number;
+  dailyGoalProgress: number;
+  dueReviewCount: number;
 }
+
+export type ActivityType = 'LESSON' | 'WRITING' | 'LISTENING';
 
 export interface TimelineEntry {
   sessionId: string;
-  lessonId: string;
-  lessonTopic: string;
-  accuracy: number;
-  errorCount: number;
+  lessonId: string | null;
+  type: ActivityType;
+  title: string;
+  score: number;
+  errorCount: number | null;
   feedback: string;
   practicedAt: string;
 }
@@ -350,4 +359,22 @@ export interface WordComparison {
   expected: string;
   got: string | null;
   correct: boolean;
+}
+
+// Vocabulary types
+export interface VocabularyResponse {
+  id: string;
+  word: string;
+  translation: string;
+  context: string | null;
+  masteryLevel: number;
+  reviewCount: number;
+  nextReviewAt: string | null;
+  createdAt: string;
+}
+
+export interface VocabularyStatsResponse {
+  totalWords: number;
+  masteredWords: number;
+  dueForReview: number;
 }

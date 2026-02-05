@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,4 +25,9 @@ public interface ChallengeRepository extends JpaRepository<Challenge, UUID> {
 
     @Query("SELECT c.prompt FROM Challenge c WHERE c.user.id = :userId AND c.type = :type ORDER BY c.createdAt DESC")
     List<String> findLastPrompts(UUID userId, ChallengeType type, Pageable pageable);
+
+    List<Challenge> findByUserIdAndCompletedTrueAndCompletedAtBetweenOrderByCompletedAtDesc(
+            UUID userId, LocalDateTime from, LocalDateTime to);
+
+    long countByUserIdAndCompletedTrueAndCompletedAtBetween(UUID userId, LocalDateTime from, LocalDateTime to);
 }

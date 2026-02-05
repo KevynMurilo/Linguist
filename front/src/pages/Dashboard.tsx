@@ -8,7 +8,14 @@ import {
   ChevronRight,
   Sparkles,
   Trophy,
-  AlertTriangle
+  AlertTriangle,
+  PenLine,
+  Headphones,
+  History,
+  CheckCircle,
+  RotateCcw,
+  BookMarked,
+  Flame
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,13 +26,14 @@ import { LevelBadge } from '@/components/LevelBadge';
 import { StreakDisplay } from '@/components/StreakDisplay';
 import { useAppStore } from '@/lib/store';
 import { progressApi, masteryApi, lessonApi } from '@/lib/api';
+import { TimelineEntry, ActivityType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/i18n';
 
 export default function Dashboard() {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const { user, dashboard, setDashboard, competences, setCompetences, lessons, setLessons } = useAppStore();
+  const { user, dashboard, setDashboard, competences, setCompetences, lessons, setLessons, timeline, setTimeline } = useAppStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -34,14 +42,16 @@ export default function Dashboard() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [dashboardData, competenceData, lessonData] = await Promise.all([
+        const [dashboardData, competenceData, lessonData, timelineData] = await Promise.all([
           progressApi.getDashboard(user.id),
           masteryApi.getByUser(user.id, 0, 100),
           lessonApi.getByUser(user.id, 0, 3),
+          progressApi.getTimeline(user.id, 7, 0, 5),
         ]);
         setDashboard(dashboardData);
-        setCompetences(competenceData.content);
-        setLessons(lessonData.content);
+        setCompetences(competenceData.content || []);
+        setLessons(lessonData.content || []);
+        setTimeline(timelineData.content || []);
       } catch (error: any) {
         toast({
           title: t('toast.failedToLoad'),
@@ -124,6 +134,19 @@ export default function Dashboard() {
               showRecord
               size="lg"
             />
+            {/* Daily Goal Ring */}
+            <div className="relative">
+              <ProgressRing
+                value={dashboard.dailyGoalTarget > 0 ? Math.min(100, (dashboard.dailyGoalProgress / dashboard.dailyGoalTarget) * 100) : 0}
+                size={64}
+                strokeWidth={4}
+              >
+                <div className="text-center">
+                  <Flame className={`w-4 h-4 mx-auto ${dashboard.dailyGoalProgress >= dashboard.dailyGoalTarget ? 'text-success' : 'text-muted-foreground'}`} />
+                  <p className="text-[10px] font-bold">{dashboard.dailyGoalProgress}/{dashboard.dailyGoalTarget}</p>
+                </div>
+              </ProgressRing>
+            </div>
           </div>
         </div>
 
@@ -198,26 +221,170 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* New Lesson CTA */}
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="card-hover bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <Sparkles className="w-5 h-5 text-primary" />
                 {t('dashboard.startNewLesson')}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs">
                 {t('dashboard.startNewLessonDesc')}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button asChild className="btn-gradient gap-2">
+            <CardContent className="pt-0">
+              <Button asChild className="btn-gradient gap-2 w-full">
                 <Link to="/lessons/new">
                   {t('dashboard.createLesson')}
                   <ChevronRight className="w-4 h-4" />
                 </Link>
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="card-hover bg-gradient-to-br from-purple-500/5 to-purple-500/10 border-purple-500/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <PenLine className="w-5 h-5 text-purple-500" />
+                {t('dashboard.practiceWriting')}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                {t('dashboard.practiceWritingDesc')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Button asChild variant="outline" className="gap-2 w-full border-purple-500/30 hover:bg-purple-500/10">
+                <Link to="/writing">
+                  {t('nav.writing')}
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="card-hover bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Headphones className="w-5 h-5 text-orange-500" />
+                {t('dashboard.practiceListening')}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                {t('dashboard.practiceListeningDesc')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Button asChild variant="outline" className="gap-2 w-full border-orange-500/30 hover:bg-orange-500/10">
+                <Link to="/listening">
+                  {t('nav.listening')}
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Review & Vocabulary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Due Reviews */}
+          <Card className="card-hover bg-gradient-to-br from-amber-500/5 to-amber-500/10 border-amber-500/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <RotateCcw className="w-5 h-5 text-amber-500" />
+                {t('dashboard.dueReviews')}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                {t('dashboard.dueReviewsDesc')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <p className="text-3xl font-bold text-amber-500 mb-2">{dashboard.dueReviewCount}</p>
+              <p className="text-xs text-muted-foreground mb-3">{t('dashboard.rulesDueForReview')}</p>
+              <Button asChild variant="outline" className="gap-2 w-full border-amber-500/30 hover:bg-amber-500/10">
+                <Link to="/mastery">
+                  {t('dashboard.reviewNow')}
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Vocabulary */}
+          <Card className="card-hover bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 border-emerald-500/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BookMarked className="w-5 h-5 text-emerald-500" />
+                {t('dashboard.vocabulary')}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                {t('dashboard.vocabularyDesc')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Button asChild variant="outline" className="gap-2 w-full border-emerald-500/30 hover:bg-emerald-500/10">
+                <Link to="/vocabulary">
+                  {t('dashboard.studyVocabulary')}
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Activity & Weak Areas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Recent Activity */}
+          <Card className="card-hover">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="w-5 h-5 text-primary" />
+                {t('dashboard.recentActivity')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {timeline.length > 0 ? (
+                <>
+                  {timeline.slice(0, 4).map((entry) => {
+                    const Icon = entry.type === 'LESSON' ? BookOpen : entry.type === 'WRITING' ? PenLine : Headphones;
+                    const colorClass = entry.type === 'LESSON' ? 'text-blue-500' : entry.type === 'WRITING' ? 'text-purple-500' : 'text-orange-500';
+                    return (
+                      <Link
+                        key={entry.sessionId}
+                        to={entry.type === 'LESSON' && entry.lessonId ? `/lessons/${entry.lessonId}` : entry.type === 'WRITING' ? `/writing/${entry.sessionId}` : `/listening/${entry.sessionId}`}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className={`p-1.5 rounded-lg bg-muted ${colorClass}`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{entry.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(entry.practicedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {entry.score >= 80 ? (
+                            <CheckCircle className="w-4 h-4 text-success" />
+                          ) : null}
+                          <span className={`text-sm font-bold ${entry.score >= 80 ? 'text-success' : entry.score >= 60 ? 'text-warning' : 'text-muted-foreground'}`}>
+                            {entry.score}%
+                          </span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                  <Button variant="ghost" size="sm" asChild className="w-full">
+                    <Link to="/timeline">
+                      {t('dashboard.viewHistory')}
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {t('dashboard.noRecentActivity')}
+                </p>
+              )}
             </CardContent>
           </Card>
 

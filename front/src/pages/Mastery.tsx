@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { BarChart3, TrendingUp, TrendingDown, Minus, Dumbbell } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { BarChart3, TrendingUp, TrendingDown, Minus, Dumbbell, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/components/AppLayout';
@@ -22,6 +22,7 @@ export default function Mastery() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [dueReviews, setDueReviews] = useState<CompetenceResponse[]>([]);
   const PAGE_SIZE = 20;
 
   useEffect(() => {
@@ -30,10 +31,14 @@ export default function Mastery() {
     const fetchCompetences = async () => {
       setIsLoading(true);
       try {
-        const data = await masteryApi.getByUser(user.id, 0, PAGE_SIZE);
-        setCompetences(data.content);
-        setHasMore(!data.last);
-        setPage(0);
+        const [data, dueData] = await Promise.all([
+          masteryApi.getByUser(user.id, 0, PAGE_SIZE),
+          masteryApi.getDueReviews(user.id, 0, 50),
+        ]);
+        setCompetences(data.content || []);
+        setHasMore(data.last === false);
+        setPage(data.number ?? 0);
+        setDueReviews(dueData.content || []);
       } catch (error: any) {
         toast({
           title: t('toast.failedToLoad'),
@@ -54,9 +59,9 @@ export default function Mastery() {
     try {
       const nextPage = page + 1;
       const data = await masteryApi.getByUser(user.id, nextPage, PAGE_SIZE);
-      setCompetences([...competences, ...data.content]);
-      setHasMore(!data.last);
-      setPage(nextPage);
+      setCompetences([...competences, ...(data.content || [])]);
+      setHasMore(data.last === false);
+      setPage(data.number ?? nextPage);
     } catch (error: any) {
       toast({ title: t('toast.failedToLoad'), description: error.message, variant: 'destructive' });
     } finally {
@@ -194,6 +199,10 @@ export default function Mastery() {
             <Tabs defaultValue="all" className="w-full">
               <TabsList>
                 <TabsTrigger value="all">{t('mastery.tabAll', { count: competences.length })}</TabsTrigger>
+                <TabsTrigger value="review" className="gap-1">
+                  <RotateCcw className="w-3 h-3" />
+                  {t('mastery.tabReview', { count: dueReviews.length })}
+                </TabsTrigger>
                 <TabsTrigger value="weak">{t('mastery.tabWeak', { count: grouped.weak.length + grouped.critical.length })}</TabsTrigger>
                 <TabsTrigger value="mastered">{t('mastery.tabMastered', { count: grouped.mastered.length })}</TabsTrigger>
               </TabsList>
@@ -210,6 +219,31 @@ export default function Mastery() {
                         <CompetenceCard key={competence.id} competence={competence} />
                       ))}
                     </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="review" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <RotateCcw className="w-5 h-5 text-amber-500" />
+                      {t('mastery.dueForReview')}
+                    </CardTitle>
+                    <CardDescription>{t('mastery.dueForReviewDesc')}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {dueReviews.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">
+                        {t('mastery.noDueReviews')}
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {dueReviews.map((competence) => (
+                          <CompetenceCard key={competence.id} competence={competence} />
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

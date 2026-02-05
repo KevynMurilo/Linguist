@@ -62,4 +62,13 @@ public class DashboardResponse {
 
     @Schema(description = "Top 5 weakest grammar rules (needs most practice)")
     private List<String> weakestRules;
+
+    @Schema(description = "Daily goal target (sessions per day)")
+    private Integer dailyGoalTarget;
+
+    @Schema(description = "Sessions completed today towards daily goal")
+    private Long dailyGoalProgress;
+
+    @Schema(description = "Number of grammar rules due for spaced repetition review")
+    private Long dueReviewCount;
 }

@@ -6,6 +6,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,7 +21,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AIProviderException.class)
     public ResponseEntity<ErrorResponse> handleAIProvider(AIProviderException ex) {
-        return buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage(), null);
+        return buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage(), List.of("Code: " + ex.getCode()));
     }
 
     @ExceptionHandler(InvalidProviderException.class)
@@ -40,7 +41,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ErrorResponse> handleMissingHeader(MissingRequestHeaderException ex) {
-        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null);
+        return buildResponse(HttpStatus.BAD_REQUEST, "Header obrigatório ausente: " + ex.getHeaderName(), null);
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ErrorResponse> handleMissingPart(MissingServletRequestPartException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Campo obrigatório ausente: " + ex.getRequestPartName(), null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -48,23 +54,22 @@ public class GlobalExceptionHandler {
         List<String> details = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> String.format("'%s' %s", fe.getField(), fe.getDefaultMessage()))
                 .toList();
-        return buildResponse(HttpStatus.BAD_REQUEST, "Validation failed", details);
+        return buildResponse(HttpStatus.BAD_REQUEST, "Falha na validação", details);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred", List.of(ex.getMessage()));
+        String message = ex.getMessage() != null ? ex.getMessage() : "Erro interno do servidor";
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, message, List.of(ex.getClass().getSimpleName()));
     }
 
     private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message, List<String> details) {
-        ErrorResponse body = ErrorResponse.builder()
+        return ResponseEntity.status(status).body(ErrorResponse.builder()
                 .status(status.value())
                 .error(status.getReasonPhrase())
                 .message(message)
                 .details(details)
                 .timestamp(LocalDateTime.now())
-                .build();
-        return ResponseEntity.status(status).body(body);
+                .build());
     }
 }

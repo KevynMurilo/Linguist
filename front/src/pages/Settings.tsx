@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Key, LogOut, Trash2, Globe } from 'lucide-react';
+import { ArrowLeft, User, Key, LogOut, Trash2, Globe, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -60,6 +60,7 @@ export default function Settings() {
   // Profile form
   const [name, setName] = useState(user?.name || '');
   const [level, setLevel] = useState<LanguageLevel>(user?.level || 'A1');
+  const [dailyGoal, setDailyGoal] = useState(user?.dailyGoal || 3);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
   // AI config form
@@ -71,7 +72,7 @@ export default function Settings() {
 
     setIsUpdatingProfile(true);
     try {
-      const updated = await userApi.update(user.id, { name, level });
+      const updated = await userApi.update(user.id, { name, level, dailyGoal });
       setUser(updated);
       toast({
         title: t('toast.profileUpdated'),
@@ -249,6 +250,36 @@ export default function Settings() {
                         <span>{loc.flag}</span>
                         <span>{loc.label}</span>
                       </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Daily Goal Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5" />
+              {t('settings.dailyGoal')}
+            </CardTitle>
+            <CardDescription>
+              {t('settings.dailyGoalDesc')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label>{t('settings.sessionsPerDay')}</Label>
+              <Select value={String(dailyGoal)} onValueChange={(v) => setDailyGoal(Number(v))}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 3, 5, 10].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {t('settings.goalOption', { count: n })}
                     </SelectItem>
                   ))}
                 </SelectContent>

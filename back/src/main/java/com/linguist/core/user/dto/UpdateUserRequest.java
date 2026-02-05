@@ -23,4 +23,7 @@ public class UpdateUserRequest {
 
     @Schema(example = "B1", description = "Updated proficiency level")
     private LanguageLevel level;
+
+    @Schema(example = "3", description = "Daily practice goal (sessions per day)")
+    private Integer dailyGoal;
 }

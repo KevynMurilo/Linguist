@@ -63,9 +63,9 @@ export default function LessonPractice() {
     if (!id) return;
     try {
       const response = await lessonApi.getHistory(id, page, 5);
-      setHistory(response.content);
-      setTotalPages(response.totalPages);
-      setCurrentPage(response.number);
+      setHistory(response.content || []);
+      setTotalPages(response.totalPages ?? 1);
+      setCurrentPage(response.number ?? page);
     } catch (error) {
       console.error(error);
     }
@@ -251,7 +251,7 @@ export default function LessonPractice() {
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
-      formData.append('spokenText', spokenText.trim());
+      formData.append('spokenText', spokenText.trim() || '');
       formData.append('userId', user.id);
       formData.append('lessonId', lesson.id);
       formData.append('transcriptionMode', transcriptionMode);
@@ -267,7 +267,13 @@ export default function LessonPractice() {
       setLesson(updatedLesson);
       await fetchHistory(0);
     } catch (error: any) {
-      toast({ title: t('toast.analysisFailed'), description: error.message, variant: 'destructive' });
+      const message = error.message || 'Erro desconhecido';
+      const details = error.details?.join(', ') || '';
+      toast({
+        title: t('toast.analysisFailed'),
+        description: details ? `${message} (${details})` : message,
+        variant: 'destructive'
+      });
     } finally {
       setIsAnalyzing(false);
     }

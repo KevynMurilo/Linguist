@@ -18,6 +18,7 @@ import WritingChallengeDetail from "./pages/WritingChallengeDetail";
 import ListeningChallenge from "./pages/ListeningChallenge";
 import ListeningChallengeDetail from "./pages/ListeningChallengeDetail";
 import Timeline from "./pages/Timeline";
+import Vocabulary from "./pages/Vocabulary";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -40,6 +41,7 @@ function TitleHandler() {
       "/writing": t('nav.writing') + " | Linguist",
       "/listening": t('nav.listening') + " | Linguist",
       "/timeline": t('nav.history') + " | Linguist",
+      "/vocabulary": t('nav.vocabulary') + " | Linguist",
       "/settings": t('nav.settings') + " | Linguist",
     };
 
@@ -93,6 +95,7 @@ export default function App() {
               <Route path="/listening" element={<ProtectedRoute><ListeningChallenge /></ProtectedRoute>} />
               <Route path="/listening/:id" element={<ProtectedRoute><ListeningChallengeDetail /></ProtectedRoute>} />
               <Route path="/timeline" element={<ProtectedRoute><Timeline /></ProtectedRoute>} />
+              <Route path="/vocabulary" element={<ProtectedRoute><Vocabulary /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               
               <Route path="*" element={<NotFound />} />

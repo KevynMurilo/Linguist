@@ -58,6 +58,10 @@ public class User {
     @Builder.Default
     private Long totalPracticeSessions = 0L;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer dailyGoal = 3;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Lesson> lessons = new ArrayList<>();

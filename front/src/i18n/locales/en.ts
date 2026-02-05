@@ -437,6 +437,62 @@ const en = {
   "listening.correct": "Correct",
   "listening.wrong": "Wrong",
   "listening.missed": "Missed",
+
+  // Dashboard extras
+  "dashboard.quickActions": "Quick Actions",
+  "dashboard.practiceWriting": "Practice Writing",
+  "dashboard.practiceWritingDesc": "Improve your written expression with AI feedback",
+  "dashboard.practiceListening": "Practice Listening",
+  "dashboard.practiceListeningDesc": "Train your ear with dictation exercises",
+  "dashboard.recentActivity": "Recent Activity",
+  "dashboard.noRecentActivity": "No recent activity. Start practicing!",
+  "dashboard.viewHistory": "View Full History",
+  "dashboard.dueReviews": "Due for Review",
+  "dashboard.dueReviewsDesc": "Grammar rules that need spaced repetition review",
+  "dashboard.rulesDueForReview": "rules due for review",
+  "dashboard.reviewNow": "Review Now",
+  "dashboard.vocabulary": "Vocabulary",
+  "dashboard.vocabularyDesc": "Review your flashcards and learn new words",
+  "dashboard.studyVocabulary": "Study Vocabulary",
+
+  // Nav extras
+  "nav.vocabulary": "Vocabulary",
+
+  // Settings extras
+  "settings.dailyGoal": "Daily Goal",
+  "settings.dailyGoalDesc": "Set how many practice sessions you want to complete each day",
+  "settings.sessionsPerDay": "Sessions per day",
+  "settings.goalOption": "{count} sessions",
+
+  // Mastery extras
+  "mastery.tabReview": "Review ({count})",
+  "mastery.dueForReview": "Due for Review",
+  "mastery.dueForReviewDesc": "These grammar rules are scheduled for spaced repetition review. Practice them to strengthen your memory.",
+  "mastery.noDueReviews": "No rules due for review. Great job staying on track!",
+
+  // Vocabulary
+  "vocabulary.title": "Vocabulary",
+  "vocabulary.subtitle": "Review and practice your vocabulary with flashcards",
+  "vocabulary.loading": "Loading vocabulary...",
+  "vocabulary.totalWords": "Total Words",
+  "vocabulary.mastered": "Mastered",
+  "vocabulary.dueForReview": "Due for Review",
+  "vocabulary.noWords": "No vocabulary yet",
+  "vocabulary.noWordsDesc": "Complete lessons to automatically build your vocabulary list",
+  "vocabulary.tabReview": "Review",
+  "vocabulary.tabAll": "All Words",
+  "vocabulary.allReviewed": "All caught up!",
+  "vocabulary.allReviewedDesc": "No words due for review right now. Come back later!",
+  "vocabulary.remaining": "{count} cards remaining",
+  "vocabulary.tapToFlip": "Tap to reveal translation",
+  "vocabulary.dontKnow": "Don't Know",
+  "vocabulary.know": "Know",
+  "vocabulary.allWords": "All Vocabulary",
+  "vocabulary.allWordsDesc": "Words extracted from your lessons",
+
+  // Toast extras
+  "toast.error": "Error",
+
 } as const;
 
 export default en;

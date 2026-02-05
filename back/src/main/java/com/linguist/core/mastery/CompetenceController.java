@@ -52,6 +52,19 @@ public class CompetenceController {
         return ResponseEntity.ok(weaknesses);
     }
 
+    @GetMapping("/user/{userId}/due-reviews")
+    @Operation(summary = "Get grammar rules due for review (Paginated)",
+            description = "Returns competences where the next review date has passed, sorted by urgency.")
+    @ApiResponse(responseCode = "200", description = "Due reviews retrieved")
+    public ResponseEntity<Page<CompetenceResponse>> getDueReviews(
+            @PathVariable UUID userId,
+            @Parameter(description = "Zero-based page index") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "The size of the page") @RequestParam(defaultValue = "10") int size) {
+        Page<CompetenceResponse> dueReviews = competenceService.findDueReviews(userId, page, size)
+                .map(CompetenceResponse::from);
+        return ResponseEntity.ok(dueReviews);
+    }
+
     @PostMapping("/record")
     @Operation(summary = "Record a practice result",
             description = "After a Shadowing session, records success or failure for a grammar rule. "

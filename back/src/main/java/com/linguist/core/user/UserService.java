@@ -74,6 +74,7 @@ public class UserService {
         if (request.getName() != null) user.setName(request.getName());
         if (request.getTargetLanguage() != null) user.setTargetLanguage(request.getTargetLanguage());
         if (request.getLevel() != null) user.setLevel(request.getLevel());
+        if (request.getDailyGoal() != null) user.setDailyGoal(request.getDailyGoal());
         return userRepository.save(user);
     }
 

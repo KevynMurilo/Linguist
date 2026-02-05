@@ -57,6 +57,15 @@ public class CompetenceService {
                 .toList();
     }
 
+    public Page<Competence> findDueReviews(UUID userId, int page, int size) {
+        return competenceRepository.findByUserIdAndNextReviewAtBeforeOrderByNextReviewAtAsc(
+                userId, LocalDateTime.now(), PageRequest.of(page, size));
+    }
+
+    public long countDueReviews(UUID userId) {
+        return competenceRepository.countByUserIdAndNextReviewAtBefore(userId, LocalDateTime.now());
+    }
+
     public List<String> getAllRuleNames(UUID userId) {
         return findByUserId(userId).stream()
                 .map(Competence::getRuleName)

@@ -1,5 +1,8 @@
 package com.linguist.core.progress;
 
+import com.linguist.core.challenge.Challenge;
+import com.linguist.core.challenge.ChallengeRepository;
+import com.linguist.core.challenge.ChallengeType;
 import com.linguist.core.lesson.LessonRepository;
 import com.linguist.core.mastery.Competence;
 import com.linguist.core.mastery.CompetenceRepository;
@@ -13,18 +16,17 @@ import com.linguist.core.user.User;
 import com.linguist.core.user.UserRepository;
 import com.linguist.core.user.UserService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.Comparator;
-import java.util.List;
-import java.util.UUID;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.*;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProgressService {
@@ -37,6 +39,7 @@ public class ProgressService {
     private final CompetenceRepository competenceRepository;
     private final PracticeSessionRepository practiceSessionRepository;
     private final LessonRepository lessonRepository;
+    private final ChallengeRepository challengeRepository;
 
     @Transactional(readOnly = true)
     public DashboardResponse getDashboard(UUID userId) {
@@ -73,6 +76,15 @@ public class ProgressService {
         LanguageLevel nextLevel = eligible ?
                 LanguageLevel.values()[user.getLevel().ordinal() + 1] : null;
 
+        LocalDate today = LocalDate.now();
+        long todaySessions = practiceSessionRepository.countByUserIdAndPracticeDate(userId, today);
+        LocalDateTime todayStart = today.atStartOfDay();
+        LocalDateTime todayEnd = today.atTime(LocalTime.MAX);
+        long todayChallenges = challengeRepository.countByUserIdAndCompletedTrueAndCompletedAtBetween(userId, todayStart, todayEnd);
+        long dailyGoalProgress = todaySessions + todayChallenges;
+
+        long dueReviewCount = competenceRepository.countByUserIdAndNextReviewAtBefore(userId, LocalDateTime.now());
+
         return DashboardResponse.builder()
                 .currentLevel(user.getLevel())
                 .nextLevel(nextLevel)
@@ -90,40 +102,81 @@ public class ProgressService {
                 .lastPracticeDate(user.getLastPracticeDate())
                 .sessionsLast7Days(sessionsLast7Days)
                 .weakestRules(weakestRules)
+                .dailyGoalTarget(user.getDailyGoal())
+                .dailyGoalProgress(dailyGoalProgress)
+                .dueReviewCount(dueReviewCount)
                 .build();
     }
 
     @Transactional(readOnly = true)
     public List<TimelineEntry> getTimeline(UUID userId, int days) {
-        LocalDate from = LocalDate.now().minusDays(days);
+        LocalDateTime from = LocalDate.now().minusDays(days).atStartOfDay();
+        LocalDateTime to = LocalDate.now().atTime(LocalTime.MAX);
 
-        List<PracticeSession> sessions = practiceSessionRepository
-                .findByUserIdAndPracticeDateBetweenOrderByCreatedAtDesc(userId, from, LocalDate.now());
+        List<TimelineEntry> entries = new ArrayList<>();
 
-        return sessions.stream()
-                .map(this::mapToTimelineEntry)
-                .toList();
+        practiceSessionRepository
+                .findByUserIdAndPracticeDateBetweenOrderByCreatedAtDesc(userId, from.toLocalDate(), to.toLocalDate())
+                .forEach(s -> entries.add(mapSessionToEntry(s)));
+
+        challengeRepository
+                .findByUserIdAndCompletedTrueAndCompletedAtBetweenOrderByCompletedAtDesc(userId, from, to)
+                .forEach(c -> entries.add(mapChallengeToEntry(c)));
+
+        entries.sort(Comparator.comparing(TimelineEntry::getPracticedAt).reversed());
+        return entries;
     }
 
     @Transactional(readOnly = true)
     public Page<TimelineEntry> getTimeline(UUID userId, int days, int page, int size) {
-        LocalDate from = LocalDate.now().minusDays(days);
+        List<TimelineEntry> all = getTimeline(userId, days);
+        int start = page * size;
+        int end = Math.min(start + size, all.size());
 
-        return practiceSessionRepository
-                .findByUserIdAndPracticeDateBetweenOrderByCreatedAtDesc(userId, from, LocalDate.now(), PageRequest.of(page, size))
-                .map(this::mapToTimelineEntry);
+        if (start >= all.size()) {
+            return new PageImpl<>(List.of(), PageRequest.of(page, size), all.size());
+        }
+
+        return new PageImpl<>(all.subList(start, end), PageRequest.of(page, size), all.size());
     }
 
-    private TimelineEntry mapToTimelineEntry(PracticeSession s) {
+    private TimelineEntry mapSessionToEntry(PracticeSession s) {
         return TimelineEntry.builder()
                 .sessionId(s.getId())
                 .lessonId(s.getLesson() != null ? s.getLesson().getId() : null)
-                .lessonTopic(s.getLesson() != null ? s.getLesson().getTopic() : "Deleted Lesson")
-                .accuracy(s.getAccuracy())
+                .type(TimelineEntry.ActivityType.LESSON)
+                .title(s.getLesson() != null ? s.getLesson().getTopic() : "Deleted Lesson")
+                .score(s.getAccuracy())
                 .errorCount(s.getErrorCount())
                 .feedback(s.getFeedback())
                 .practicedAt(s.getCreatedAt())
                 .build();
+    }
+
+    private TimelineEntry mapChallengeToEntry(Challenge c) {
+        TimelineEntry.ActivityType type = c.getType() == ChallengeType.WRITING
+                ? TimelineEntry.ActivityType.WRITING
+                : TimelineEntry.ActivityType.LISTENING;
+
+        String title = c.getType() == ChallengeType.WRITING
+                ? (c.getPrompt() != null ? c.getPrompt().split("\n")[0] : "Writing Challenge")
+                : (c.getOriginalText() != null ? truncate(c.getOriginalText(), 50) : "Listening Challenge");
+
+        return TimelineEntry.builder()
+                .sessionId(c.getId())
+                .lessonId(null)
+                .type(type)
+                .title(title)
+                .score(c.getScore())
+                .errorCount(null)
+                .feedback(c.getFeedback())
+                .practicedAt(c.getCompletedAt())
+                .build();
+    }
+
+    private String truncate(String text, int maxLen) {
+        if (text == null) return "";
+        return text.length() <= maxLen ? text : text.substring(0, maxLen) + "...";
     }
 
     @Transactional

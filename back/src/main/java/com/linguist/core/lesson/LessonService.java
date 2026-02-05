@@ -14,6 +14,7 @@ import com.linguist.core.user.LanguageLevel;
 import com.linguist.core.user.User;
 import com.linguist.core.user.UserService;
 import com.linguist.core.transcription.TranscriptionService;
+import com.linguist.core.vocabulary.VocabularyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -42,6 +43,9 @@ public class LessonService {
     @Autowired(required = false)
     private TranscriptionService transcriptionService;
 
+    @Autowired
+    private VocabularyService vocabularyService;
+
     @Transactional
     public LessonResponseDTO generate(UUID userId, String topic, String targetLanguage, String provider, String apiKey) {
         User user = userService.findById(userId);
@@ -59,6 +63,7 @@ public class LessonService {
         try {
             String aiResponse = client.generateContent(systemPrompt, userPrompt, apiKey);
             Lesson lesson = parseAndSaveLesson(aiResponse, user, topic, effectiveTargetLanguage);
+            vocabularyService.extractAndSave(userId, lesson.getVocabularyList(), topic);
             return mapToDTO(lesson);
         } catch (Exception e) {
             throw new AIProviderException("GENERATE_ERROR", "Failed to generate lesson", e);
@@ -73,17 +78,34 @@ public class LessonService {
 
         String lessonTargetLang = lesson.getTargetLanguage() != null ? lesson.getTargetLanguage() : user.getTargetLanguage();
 
-        // Use transcription based on user's chosen mode
         String effectiveText = spokenText;
         boolean hasWhisper = false;
         boolean useWhisper = "whisper".equalsIgnoreCase(transcriptionMode);
+        boolean whisperFailed = false;
 
-        if (useWhisper && transcriptionService != null && audioData != null && audioData.length > 0) {
-            String whisperText = transcriptionService.transcribe(audioData, lessonTargetLang);
-            if (whisperText != null && !whisperText.isBlank()) {
-                effectiveText = whisperText;
-                hasWhisper = true;
+        if (useWhisper && audioData != null && audioData.length > 0) {
+            if (transcriptionService != null) {
+                String whisperText = transcriptionService.transcribe(audioData, lessonTargetLang);
+                if (whisperText != null && !whisperText.isBlank()) {
+                    effectiveText = whisperText;
+                    hasWhisper = true;
+                } else {
+                    whisperFailed = true;
+                    if (spokenText == null || spokenText.isBlank()) {
+                        effectiveText = "";
+                    }
+                }
+            } else {
+                whisperFailed = true;
+                if (spokenText == null || spokenText.isBlank()) {
+                    effectiveText = "";
+                }
             }
+        }
+
+        if (useWhisper && whisperFailed && (effectiveText == null || effectiveText.isBlank())) {
+            throw new AIProviderException("WHISPER_UNAVAILABLE",
+                "O serviço de transcrição Whisper não está disponível. Por favor, tente o modo 'Navegador' ou verifique a configuração do servidor.");
         }
 
         int totalWords = countWords(lesson.getSimplifiedText());
@@ -92,19 +114,23 @@ public class LessonService {
 
         AIClient client = aiClientFactory.getClient(provider);
         String systemPrompt = buildAnalysisSystemPrompt(user, lessonTargetLang, coverage, totalWords, spokenWords, hasWhisper);
-
         String userPrompt = String.format("ORIGINAL: \"%s\"\nSTUDENT: \"%s\"", lesson.getSimplifiedText(), effectiveText);
 
-        String result = client.analyzeSpeech(systemPrompt, userPrompt, apiKey);
-        SpeechAnalysisResponse analysis = parseSpeechAnalysis(result);
+        try {
+            String result = client.analyzeSpeech(systemPrompt, userPrompt, apiKey);
+            SpeechAnalysisResponse analysis = parseSpeechAnalysis(result);
 
-        if (coverage < 30 && analysis.getAccuracy() > 35) {
-            analysis.setAccuracy(Math.max(coverage, 5));
+            if (coverage < 30 && analysis.getAccuracy() > 35) {
+                analysis.setAccuracy(Math.max(coverage, 5));
+            }
+
+            saveFullPracticeResults(user, lesson, analysis, audioData, spokenText);
+            return analysis;
+        } catch (AIProviderException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AIProviderException("ANALYSIS_ERROR", "Falha ao analisar sua fala: " + e.getMessage(), e);
         }
-
-        saveFullPracticeResults(user, lesson, analysis, audioData, spokenText);
-
-        return analysis;
     }
 
     @Transactional(readOnly = true)

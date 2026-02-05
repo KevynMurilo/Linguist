@@ -7,6 +7,6 @@ services:
     ports:
       - "9000:9000"
     environment:
-      - ASR_MODEL=base
-      - ASR_ENGINE=openai_whisper
+      - ASR_MODEL=small
+      - ASR_ENGINE=faster_whisper
     restart: unless-stopped

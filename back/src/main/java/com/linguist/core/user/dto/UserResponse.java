@@ -36,6 +36,9 @@ public class UserResponse {
     @Schema(description = "Total number of practice sessions completed")
     private Long totalPracticeSessions;
 
+    @Schema(description = "Daily practice goal (number of sessions)")
+    private Integer dailyGoal;
+
     private LocalDateTime createdAt;
 
     public static UserResponse from(User user) {
@@ -50,6 +53,7 @@ public class UserResponse {
                 .longestStreak(user.getLongestStreak())
                 .lastPracticeDate(user.getLastPracticeDate())
                 .totalPracticeSessions(user.getTotalPracticeSessions())
+                .dailyGoal(user.getDailyGoal())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

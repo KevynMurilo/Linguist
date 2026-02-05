@@ -11,18 +11,23 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Schema(description = "A single practice session in the user's timeline")
+@Schema(description = "A single activity in the user's timeline")
 public class TimelineEntry {
+
+    public enum ActivityType { LESSON, WRITING, LISTENING }
 
     private UUID sessionId;
 
     private UUID lessonId;
 
-    @Schema(description = "Topic of the lesson practiced")
-    private String lessonTopic;
+    @Schema(description = "Type of activity")
+    private ActivityType type;
 
-    @Schema(description = "Accuracy score achieved (0-100)")
-    private Integer accuracy;
+    @Schema(description = "Topic or title of the activity")
+    private String title;
+
+    @Schema(description = "Score achieved (0-100)")
+    private Integer score;
 
     @Schema(description = "Number of errors in this session")
     private Integer errorCount;

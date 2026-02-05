@@ -61,7 +61,7 @@ public class LessonController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public ResponseEntity<SpeechAnalysisResponse> analyzeSpeech(
             @RequestPart("audio") MultipartFile audio,
-            @RequestPart("spokenText") String spokenText,
+            @RequestPart(value = "spokenText", required = false) String spokenText,
             @RequestPart("userId") String userId,
             @RequestPart("lessonId") String lessonId,
             @RequestPart(value = "transcriptionMode", required = false) String transcriptionMode,
@@ -73,7 +73,7 @@ public class LessonController {
         return ResponseEntity.ok(lessonService.analyzeSpeech(
                 UUID.fromString(userId),
                 UUID.fromString(lessonId),
-                spokenText,
+                spokenText != null ? spokenText : "",
                 audio.getBytes(),
                 transcriptionMode != null ? transcriptionMode : "whisper",
                 provider,

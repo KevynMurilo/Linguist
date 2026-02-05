@@ -26,6 +26,8 @@ import {
   SubmitListeningRequest,
   ChallengeResponseDTO,
   PageResponse,
+  VocabularyResponse,
+  VocabularyStatsResponse,
 } from './types';
 import { useAppStore } from './store';
 
@@ -74,11 +76,21 @@ async function handleResponse<T>(response: Response): Promise<T> {
     const errorData: ErrorResponse = await response.json().catch(() => ({
       status: response.status,
       error: response.statusText,
-      message: 'An unexpected error occurred',
+      message: 'Erro inesperado ao conectar com o servidor',
       details: null,
       timestamp: new Date().toISOString(),
     }));
-    throw errorData;
+
+    // Create a more user-friendly error with the message from backend
+    const error = new Error(errorData.message) as Error & {
+      status: number;
+      details: string[] | null;
+      code: string;
+    };
+    error.status = errorData.status;
+    error.details = errorData.details;
+    error.code = errorData.error;
+    throw error;
   }
 
   if (response.status === 204) {
@@ -220,11 +232,11 @@ export const lessonApi = {
     return handleResponse<void>(response);
   },
 
-  getHistory: async (lessonId: string, page: number = 0, size: number = 5): Promise<any> => {
+  getHistory: async (lessonId: string, page: number = 0, size: number = 5): Promise<PageResponse<PracticeSessionResponseDTO>> => {
     const response = await fetch(`${BASE_URL}/lessons/${lessonId}/sessions?page=${page}&size=${size}`, {
       headers: getHeaders(),
     });
-    return handleResponse<any>(response);
+    return handleResponse<PageResponse<PracticeSessionResponseDTO>>(response);
   },
 
   explainWord: async (data: ExplainWordRequest): Promise<ExplainWordResponse> => {
@@ -284,6 +296,13 @@ export const masteryApi = {
       headers: getHeaders(),
     });
     return handleResponse<PageResponse<RelatedLessonDTO>>(response);
+  },
+
+  getDueReviews: async (userId: string, page = 0, size = 10): Promise<PageResponse<CompetenceResponse>> => {
+    const response = await fetch(`${BASE_URL}/mastery/user/${userId}/due-reviews?page=${page}&size=${size}`, {
+      headers: getHeaders(),
+    });
+    return handleResponse<PageResponse<CompetenceResponse>>(response);
   },
 };
 
@@ -365,17 +384,58 @@ export const challengeApi = {
     return handleResponse<ChallengeResponseDTO>(response);
   },
 
-  getWritingHistory: async (userId: string, page = 0, size = 10): Promise<any> => {
+  getWritingHistory: async (userId: string, page = 0, size = 10): Promise<PageResponse<ChallengeResponseDTO>> => {
     const response = await fetch(`${BASE_URL}/challenges/writing/user/${userId}?page=${page}&size=${size}`, {
       headers: getHeaders(),
     });
-    return handleResponse<any>(response);
+    return handleResponse<PageResponse<ChallengeResponseDTO>>(response);
   },
 
-  getListeningHistory: async (userId: string, page = 0, size = 10): Promise<any> => {
+  getListeningHistory: async (userId: string, page = 0, size = 10): Promise<PageResponse<ChallengeResponseDTO>> => {
     const response = await fetch(`${BASE_URL}/challenges/listening/user/${userId}?page=${page}&size=${size}`, {
       headers: getHeaders(),
     });
-    return handleResponse<any>(response);
+    return handleResponse<PageResponse<ChallengeResponseDTO>>(response);
+  },
+};
+
+// Vocabulary API
+export const vocabularyApi = {
+  getAll: async (userId: string, page = 0, size = 20): Promise<PageResponse<VocabularyResponse>> => {
+    const response = await fetch(`${BASE_URL}/vocabulary/user/${userId}?page=${page}&size=${size}`, {
+      headers: getHeaders(),
+    });
+    return handleResponse<PageResponse<VocabularyResponse>>(response);
+  },
+
+  getDue: async (userId: string, page = 0, size = 20): Promise<PageResponse<VocabularyResponse>> => {
+    const response = await fetch(`${BASE_URL}/vocabulary/user/${userId}/due?page=${page}&size=${size}`, {
+      headers: getHeaders(),
+    });
+    return handleResponse<PageResponse<VocabularyResponse>>(response);
+  },
+
+  review: async (id: string, correct: boolean): Promise<VocabularyResponse> => {
+    const response = await fetch(`${BASE_URL}/vocabulary/${id}/review`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ correct }),
+    });
+    return handleResponse<VocabularyResponse>(response);
+  },
+
+  getStats: async (userId: string): Promise<VocabularyStatsResponse> => {
+    const response = await fetch(`${BASE_URL}/vocabulary/user/${userId}/stats`, {
+      headers: getHeaders(),
+    });
+    return handleResponse<VocabularyStatsResponse>(response);
+  },
+
+  delete: async (id: string): Promise<void> => {
+    const response = await fetch(`${BASE_URL}/vocabulary/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse<void>(response);
   },
 };

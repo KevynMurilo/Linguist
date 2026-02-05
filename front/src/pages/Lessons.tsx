@@ -28,9 +28,9 @@ export default function Lessons() {
       setIsLoading(true);
       try {
         const data = await lessonApi.getByUser(user.id, 0, PAGE_SIZE);
-        setLessons(data.content);
-        setHasMore(!data.last);
-        setPage(0);
+        setLessons(data.content || []);
+        setHasMore(data.last === false);
+        setPage(data.number ?? 0);
       } catch (error: any) {
         toast({
           title: t('toast.failedToLoad'),
@@ -51,9 +51,9 @@ export default function Lessons() {
     try {
       const nextPage = page + 1;
       const data = await lessonApi.getByUser(user.id, nextPage, PAGE_SIZE);
-      setLessons([...lessons, ...data.content]);
-      setHasMore(!data.last);
-      setPage(nextPage);
+      setLessons([...lessons, ...(data.content || [])]);
+      setHasMore(data.last === false);
+      setPage(data.number ?? nextPage);
     } catch (error: any) {
       toast({ title: t('toast.failedToLoad'), description: error.message, variant: 'destructive' });
     } finally {

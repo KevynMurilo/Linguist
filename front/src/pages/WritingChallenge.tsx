@@ -30,8 +30,8 @@ export default function WritingChallenge() {
     try {
       const data = await challengeApi.getWritingHistory(user.id, page, 5);
       setHistory(data.content || []);
-      setHistoryTotalPages(data.totalPages || 0);
-      setHistoryPage(page);
+      setHistoryTotalPages(data.totalPages ?? 1);
+      setHistoryPage(data.number ?? page);
     } catch { /* ignore */ }
   };
 

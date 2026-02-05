@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { History, Calendar, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
+import { History, Calendar, CheckCircle, XCircle, ChevronDown, BookOpen, PenLine, Headphones } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AppLayout } from '@/components/AppLayout';
 import { useAppStore } from '@/lib/store';
 import { progressApi } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { TimelineEntry } from '@/lib/types';
+import { TimelineEntry, ActivityType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { useTranslation, LOCALE_BCP47 } from '@/i18n';
@@ -29,9 +29,9 @@ export default function Timeline() {
       setIsLoading(true);
       try {
         const data = await progressApi.getTimeline(user.id, days, 0, PAGE_SIZE);
-        setTimeline(data.content);
-        setHasMore(!data.last);
-        setPage(0);
+        setTimeline(data.content || []);
+        setHasMore(data.last === false);
+        setPage(data.number ?? 0);
       } catch (error: any) {
         toast({
           title: t('toast.failedToLoad'),
@@ -52,9 +52,9 @@ export default function Timeline() {
     try {
       const nextPage = page + 1;
       const data = await progressApi.getTimeline(user.id, days, nextPage, PAGE_SIZE);
-      setTimeline([...timeline, ...data.content]);
-      setHasMore(!data.last);
-      setPage(nextPage);
+      setTimeline([...timeline, ...(data.content || [])]);
+      setHasMore(data.last === false);
+      setPage(data.number ?? nextPage);
     } catch (error: any) {
       toast({ title: t('toast.failedToLoad'), description: error.message, variant: 'destructive' });
     } finally {
@@ -93,10 +93,37 @@ export default function Timeline() {
     });
   };
 
-  const getAccuracyColor = (accuracy: number) => {
-    if (accuracy >= 80) return 'text-success';
-    if (accuracy >= 60) return 'text-warning';
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-success';
+    if (score >= 60) return 'text-warning';
     return 'text-destructive';
+  };
+
+  const getActivityIcon = (type: ActivityType) => {
+    switch (type) {
+      case 'WRITING': return PenLine;
+      case 'LISTENING': return Headphones;
+      case 'LESSON':
+      default: return BookOpen;
+    }
+  };
+
+  const getActivityLink = (entry: TimelineEntry) => {
+    switch (entry.type) {
+      case 'WRITING': return `/writing/${entry.sessionId}`;
+      case 'LISTENING': return `/listening/${entry.sessionId}`;
+      case 'LESSON':
+      default: return entry.lessonId ? `/lessons/${entry.lessonId}` : '#';
+    }
+  };
+
+  const getActivityLabel = (type: ActivityType) => {
+    switch (type) {
+      case 'WRITING': return t('nav.writing');
+      case 'LISTENING': return t('nav.listening');
+      case 'LESSON':
+      default: return t('nav.lessons');
+    }
   };
 
   if (isLoading) {
@@ -165,49 +192,61 @@ export default function Timeline() {
                 </div>
 
                 <div className="space-y-3 pl-6 border-l-2 border-border">
-                  {grouped[date].map((entry) => (
-                    <Link
-                      key={entry.sessionId}
-                      to={`/lessons/${entry.lessonId}`}
-                      className="block"
-                    >
-                      <Card className="card-hover">
-                        <CardContent className="pt-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                {entry.accuracy >= 80 ? (
-                                  <CheckCircle className="w-4 h-4 text-success" />
-                                ) : (
-                                  <XCircle className="w-4 h-4 text-destructive" />
-                                )}
-                                <span className="text-sm text-muted-foreground">
-                                  {formatTime(entry.practicedAt)}
-                                </span>
-                              </div>
-                              <h4 className="font-medium mb-1">{entry.lessonTopic}</h4>
-                              <p className="text-sm text-muted-foreground line-clamp-2">
-                                {entry.feedback}
-                              </p>
-                            </div>
-                            <div className="text-right shrink-0 ml-4">
-                              <span className={cn(
-                                "text-2xl font-bold",
-                                getAccuracyColor(entry.accuracy)
-                              )}>
-                                {entry.accuracy}%
-                              </span>
-                              {entry.errorCount > 0 && (
-                                <p className="text-xs text-muted-foreground">
-                                  {t('timeline.errors', { count: entry.errorCount })}
+                  {grouped[date].map((entry) => {
+                    const Icon = getActivityIcon(entry.type);
+                    return (
+                      <Link
+                        key={entry.sessionId}
+                        to={getActivityLink(entry)}
+                        className="block"
+                      >
+                        <Card className="card-hover">
+                          <CardContent className="pt-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  {entry.score >= 80 ? (
+                                    <CheckCircle className="w-4 h-4 text-success" />
+                                  ) : (
+                                    <XCircle className="w-4 h-4 text-destructive" />
+                                  )}
+                                  <span className={cn(
+                                    "text-xs px-2 py-0.5 rounded-full font-medium",
+                                    entry.type === 'WRITING' ? "bg-purple-500/10 text-purple-600" :
+                                    entry.type === 'LISTENING' ? "bg-orange-500/10 text-orange-600" :
+                                    "bg-blue-500/10 text-blue-600"
+                                  )}>
+                                    <Icon className="w-3 h-3 inline mr-1" />
+                                    {getActivityLabel(entry.type)}
+                                  </span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {formatTime(entry.practicedAt)}
+                                  </span>
+                                </div>
+                                <h4 className="font-medium mb-1 line-clamp-1">{entry.title}</h4>
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {entry.feedback}
                                 </p>
-                              )}
+                              </div>
+                              <div className="text-right shrink-0 ml-4">
+                                <span className={cn(
+                                  "text-2xl font-bold",
+                                  getScoreColor(entry.score)
+                                )}>
+                                  {entry.score}%
+                                </span>
+                                {entry.errorCount != null && entry.errorCount > 0 && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {t('timeline.errors', { count: entry.errorCount })}
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  ))}
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             ))}

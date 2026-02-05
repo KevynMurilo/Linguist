@@ -26,6 +26,7 @@ public class CompetenceResponse {
     private Integer failCount;
     private Integer practiceCount;
     private LocalDateTime lastPracticed;
+    private LocalDateTime nextReviewAt;
 
     public static CompetenceResponse from(Competence c) {
         return CompetenceResponse.builder()
@@ -35,6 +36,7 @@ public class CompetenceResponse {
                 .failCount(c.getFailCount())
                 .practiceCount(c.getPracticeCount())
                 .lastPracticed(c.getLastPracticed())
+                .nextReviewAt(c.getNextReviewAt())
                 .build();
     }
 }

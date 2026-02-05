@@ -12,7 +12,8 @@ import {
   Check,
   Menu,
   PenLine,
-  Headphones
+  Headphones,
+  BookMarked
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/store';
@@ -50,6 +51,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { path: '/writing', label: t('nav.writing'), icon: PenLine },
     { path: '/listening', label: t('nav.listening'), icon: Headphones },
     { path: '/mastery', label: t('nav.mastery'), icon: BarChart3 },
+    { path: '/vocabulary', label: t('nav.vocabulary'), icon: BookMarked },
     { path: '/timeline', label: t('nav.history'), icon: History },
   ];
 

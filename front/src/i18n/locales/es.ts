@@ -439,6 +439,62 @@ const es: Record<TranslationKey, string> = {
   "listening.correct": "Correcto",
   "listening.wrong": "Incorrecto",
   "listening.missed": "Faltó",
+
+  // Dashboard extras
+  "dashboard.quickActions": "Acciones Rápidas",
+  "dashboard.practiceWriting": "Practicar Escritura",
+  "dashboard.practiceWritingDesc": "Mejora tu expresión escrita con feedback de IA",
+  "dashboard.practiceListening": "Practicar Escucha",
+  "dashboard.practiceListeningDesc": "Entrena tu oído con ejercicios de dictado",
+  "dashboard.recentActivity": "Actividad Reciente",
+  "dashboard.noRecentActivity": "Sin actividad reciente. ¡Empieza a practicar!",
+  "dashboard.viewHistory": "Ver Historial Completo",
+  "dashboard.dueReviews": "Revisión Pendiente",
+  "dashboard.dueReviewsDesc": "Reglas gramaticales que necesitan revisión espaciada",
+  "dashboard.rulesDueForReview": "reglas por revisar",
+  "dashboard.reviewNow": "Revisar Ahora",
+  "dashboard.vocabulary": "Vocabulario",
+  "dashboard.vocabularyDesc": "Revisa tus flashcards y aprende nuevas palabras",
+  "dashboard.studyVocabulary": "Estudiar Vocabulario",
+
+  // Nav extras
+  "nav.vocabulary": "Vocabulario",
+
+  // Settings extras
+  "settings.dailyGoal": "Meta Diaria",
+  "settings.dailyGoalDesc": "Establece cuántas sesiones de práctica quieres completar por día",
+  "settings.sessionsPerDay": "Sesiones por día",
+  "settings.goalOption": "{count} sesiones",
+
+  // Mastery extras
+  "mastery.tabReview": "Revisión ({count})",
+  "mastery.dueForReview": "Revisión Pendiente",
+  "mastery.dueForReviewDesc": "Estas reglas gramaticales están programadas para revisión espaciada. Practícalas para fortalecer tu memoria.",
+  "mastery.noDueReviews": "¡Ninguna regla por revisar. Buen trabajo!",
+
+  // Vocabulary
+  "vocabulary.title": "Vocabulario",
+  "vocabulary.subtitle": "Revisa y practica tu vocabulario con flashcards",
+  "vocabulary.loading": "Cargando vocabulario...",
+  "vocabulary.totalWords": "Total de Palabras",
+  "vocabulary.mastered": "Dominadas",
+  "vocabulary.dueForReview": "Por Revisar",
+  "vocabulary.noWords": "Sin vocabulario aún",
+  "vocabulary.noWordsDesc": "Completa lecciones para construir automáticamente tu lista de vocabulario",
+  "vocabulary.tabReview": "Revisar",
+  "vocabulary.tabAll": "Todas las Palabras",
+  "vocabulary.allReviewed": "¡Todo al día!",
+  "vocabulary.allReviewedDesc": "No hay palabras por revisar ahora. ¡Vuelve más tarde!",
+  "vocabulary.remaining": "{count} tarjetas restantes",
+  "vocabulary.tapToFlip": "Toca para ver la traducción",
+  "vocabulary.dontKnow": "No Sé",
+  "vocabulary.know": "Sé",
+  "vocabulary.allWords": "Todo el Vocabulario",
+  "vocabulary.allWordsDesc": "Palabras extraídas de tus lecciones",
+
+  // Toast extras
+  "toast.error": "Error",
+
 };
 
 export default es;

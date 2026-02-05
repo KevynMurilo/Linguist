@@ -49,14 +49,14 @@ export default function RulePractice() {
         masteryApi.getByUser(user.id, 0, 100),
         masteryApi.getRelatedLessons(id, 0, 50),
       ]);
-      const found = compsPage.content.find(c => c.id === id);
+      const found = (compsPage.content || []).find(c => c.id === id);
       if (!found) {
         toast({ title: 'Erro', description: 'Regra nao encontrada.', variant: 'destructive' });
         navigate('/mastery');
         return;
       }
       setCompetence(found);
-      setRelatedLessons(lessonsPage.content);
+      setRelatedLessons(lessonsPage.content || []);
     } catch (error: any) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
       navigate('/mastery');
@@ -118,7 +118,7 @@ export default function RulePractice() {
         // Update global competences
         if (user) {
           const updated = await masteryApi.getByUser(user.id, 0, 100);
-          setCompetences(updated.content);
+          setCompetences(updated.content || []);
         }
         setPhase('result');
       } catch (error: any) {

@@ -43,6 +43,8 @@ public class Competence {
 
     private LocalDateTime lastPracticed;
 
+    private LocalDateTime nextReviewAt;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -55,6 +57,7 @@ public class Competence {
         this.practiceCount++;
         this.masteryLevel = Math.min(100, this.masteryLevel + 5);
         this.lastPracticed = LocalDateTime.now();
+        this.nextReviewAt = calculateNextReview();
     }
 
     public void recordFailure() {
@@ -62,5 +65,14 @@ public class Competence {
         this.failCount++;
         this.masteryLevel = Math.max(0, this.masteryLevel - 10);
         this.lastPracticed = LocalDateTime.now();
+        this.nextReviewAt = LocalDateTime.now().plusDays(1);
+    }
+
+    private LocalDateTime calculateNextReview() {
+        LocalDateTime now = LocalDateTime.now();
+        if (this.masteryLevel < 30) return now.plusDays(1);
+        if (this.masteryLevel < 60) return now.plusDays(3);
+        if (this.masteryLevel < 80) return now.plusDays(7);
+        return now.plusDays(14);
     }
 }
